@@ -1,0 +1,60 @@
+name: Build Quiet Recorder iPhone and Watch
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'QuietRecorder/**'
+      - '.github/workflows/recorder.yml'
+permissions:
+  contents: read
+concurrency:
+  group: recorder-build-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  build:
+    if: github.event.repository.private == false
+    runs-on: macos-15
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Build both recording apps and verify packaging
+        run: bash QuietRecorder/scripts/build.sh
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: QuietRecorder-IPA
+          path: |
+            QuietRecorder/build/QuietRecorder-*.ipa
+            QuietRecorder/build/QuietRecorder-*.ipa.sha256
+          if-no-files-found: error
+          retention-days: 3
+  publish:
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: read
+      contents: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Publish versioned preview builds
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          BUILD_RUN: ${{ github.run_id }}
+          BUILD_COMMIT: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          TAG=recorder-v1.0.0
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo 'This version is already published; bump the version before publishing changes.'
+            exit 0
+          fi
+          gh run download "$BUILD_RUN" --name QuietRecorder-IPA --dir release
+          (cd release && sha256sum --check *.sha256)
+          python3 QuietRecorder/scripts/verify_ipa.py release/QuietRecorder-v1.0.0.ipa
+          python3 QuietRecorder/scripts/verify_ipa.py release/QuietRecorder-iPhone-v1.0.0.ipa --phone-only
+          gh release create "$TAG" release/*.ipa release/*.sha256 --prerelease \
+            --target "$BUILD_COMMIT" --title 'Quiet Recorder v1.0.0 · iPhone + Apple Watch preview' \
+            --notes-file QuietRecorder/README.md
