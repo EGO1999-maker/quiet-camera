@@ -16,6 +16,10 @@ with zipfile.ZipFile(sys.argv[1]) as archive:
     assert info.get("NSPhotoLibraryUsageDescription")
     assert not info.get("NSMicrophoneUsageDescription")
     assert not info.get("UIBackgroundModes")
+    intent_metadata = [entry for entry in archive.infolist()
+                       if entry.filename.startswith(root + "Metadata.appintents/") and entry.file_size > 0]
+    assert intent_metadata, "Missing App Intents metadata: the camera action would not be discoverable"
+    print("App Intents metadata verified:", ", ".join(entry.filename[len(root):] for entry in intent_metadata))
     assert set(info["UISupportedInterfaceOrientations"]) == {
         "UIInterfaceOrientationPortrait", "UIInterfaceOrientationLandscapeLeft", "UIInterfaceOrientationLandscapeRight"
     }

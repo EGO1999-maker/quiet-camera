@@ -72,7 +72,7 @@ jobs:
           (cd release && sha256sum --check "$IPA.sha256")
           python3 scripts/verify_ipa.py "release/$IPA"
           printf '%s\n' \
-            'Adds left-edge back navigation and horizontal paging through captured photos. Zoomed photos pan within the image; restore fit size to resume paging. Deletion preserves a neighboring photo selection.' \
+            'Adds an Open Camera action to Shortcuts and an in-app link/setup guide. Create a saved shortcut using the action and assign it to Back Tap in iPhone Settings. Opens the camera screen without automatically taking a photo.' \
             '' \
             'Capture supports add-only access; gallery viewing and deletion require selected/all photo access. History starts with v1.3.0 captures; older photos remain in Photos. Update the existing app to retain history.' \
             '' \

@@ -172,6 +172,24 @@
 			<key>fileRef</key>
 			<string>A48D961E0FEDF921BF8AAC9A</string>
 		</dict>
+		<key>997B6D1745AE65424898A2E3</key>
+		<dict>
+			<key>isa</key>
+			<string>PBXFileReference</string>
+			<key>lastKnownFileType</key>
+			<string>sourcecode.swift</string>
+			<key>path</key>
+			<string>CameraShortcuts.swift</string>
+			<key>sourceTree</key>
+			<string>&lt;group&gt;</string>
+		</dict>
+		<key>F6ADBCCADEE4FE4949E26B4D</key>
+		<dict>
+			<key>isa</key>
+			<string>PBXBuildFile</string>
+			<key>fileRef</key>
+			<string>997B6D1745AE65424898A2E3</string>
+		</dict>
 		<key>8BF729FFE074CAEE622C0292</key>
 		<dict>
 			<key>isa</key>
@@ -229,6 +247,7 @@
 				<string>9CE851162AC67CE656AE4EC7</string>
 				<string>E5D37C2C0D6344CE20CD63D9</string>
 				<string>A48D961E0FEDF921BF8AAC9A</string>
+				<string>997B6D1745AE65424898A2E3</string>
 				<string>8BF729FFE074CAEE622C0292</string>
 				<string>06271BAF49532C879AA3C58B</string>
 			</array>
@@ -279,6 +298,7 @@
 				<string>2F58B5D5B8E468FE4448E0D8</string>
 				<string>8BCDAC0E891A708B4D77DC39</string>
 				<string>17796BDFB74B1A7542D6E0D5</string>
+				<string>F6ADBCCADEE4FE4949E26B4D</string>
 			</array>
 			<key>runOnlyForDeploymentPostprocessing</key>
 			<integer>0</integer>

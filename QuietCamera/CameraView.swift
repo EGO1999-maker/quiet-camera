@@ -1,4 +1,5 @@
 import AVFoundation
+import AppIntents
 import Photos
 import SwiftUI
 import UIKit
@@ -6,6 +7,7 @@ import UIKit
 struct CameraView: View {
     @StateObject private var camera = CameraEngine()
     @StateObject private var gallery = PhotoGalleryStore.shared
+    @StateObject private var launchRequest = CameraLaunchRequest.shared
     @Environment(\.scenePhase) private var scenePhase
     @State private var showingSettings = false
     @State private var showingReview = false
@@ -53,18 +55,38 @@ struct CameraView: View {
         .fullScreenCover(isPresented: $showingReview) {
             PhotoGalleryView(gallery: gallery)
         }
-        .onAppear { camera.setActive(scenePhase == .active && !showingReview) }
+        .onAppear {
+            camera.setActive(scenePhase == .active && !showingReview)
+            openCameraForShortcutIfNeeded()
+        }
         .onDisappear { camera.setActive(false) }
         .onChange(of: scenePhase) { phase in
             camera.setActive(phase == .active && !showingReview)
-            if phase == .active { gallery.refresh() }
+            if phase == .active {
+                gallery.refresh()
+                openCameraForShortcutIfNeeded()
+            }
         }
+        .onChange(of: launchRequest.pending) { _ in openCameraForShortcutIfNeeded() }
+        .onChange(of: gallery.deleting) { _ in openCameraForShortcutIfNeeded() }
+        .onChange(of: camera.busy) { _ in openCameraForShortcutIfNeeded() }
         .onChange(of: showingReview) { value in camera.setActive(scenePhase == .active && !value) }
         .alert("확인해 주세요", isPresented: Binding(
             get: { camera.message != nil }, set: { if !$0 { camera.message = nil } })) {
                 Button("설정 열기") { openAppSettings() }
                 Button("확인", role: .cancel) { }
             } message: { Text(camera.message ?? "") }
+    }
+
+    @MainActor
+    private func openCameraForShortcutIfNeeded() {
+        guard launchRequest.pending, scenePhase == .active, !gallery.deleting, !camera.busy else { return }
+        launchRequest.consume()
+        showingSettings = false
+        showingReview = false
+        showingExposure = false
+        camera.message = nil
+        camera.setActive(true)
     }
 
     private var header: some View {
@@ -279,6 +301,15 @@ private struct CameraSettingsView: View {
                     Text("사진 접근 범위")
                 } footer: {
                     Text("촬영한 사진을 저장하려면 ‘사진 추가만’으로 충분해요. 더 넓은 접근을 원하면 ‘선택한 사진·전체 사진 접근 설정’을 누르고 아이폰의 권한 화면에서 범위를 선택하세요. 이미 허용한 범위를 줄이거나 선택한 사진을 변경할 때는 아이폰 설정을 이용하세요.")
+                }
+                Section("단축어 · 뒷면 탭") {
+                    ShortcutsLink().shortcutsLinkStyle(.dark)
+                    Text("단축어 앱에서 새 단축어를 만들고 Quiet Camera의 ‘카메라 열기’를 추가한 뒤, ‘조용한 카메라’처럼 이름을 정해 저장하세요.")
+                        .font(.footnote).foregroundStyle(.secondary)
+                    Text("아이폰 설정 → 손쉬운 사용 → 터치 → 뒷면 탭 → 이중 탭 또는 삼중 탭에서 저장한 단축어를 선택하세요.")
+                        .font(.footnote).foregroundStyle(.secondary)
+                    Text("촬영 화면만 열며 자동으로 사진을 찍지 않아요. 잠겨 있으면 잠금 해제가 필요할 수 있어요. 뒷면 탭 연결과 인식은 아이폰 설정을 따릅니다.")
+                        .font(.footnote).foregroundStyle(.secondary)
                 }
                 Section("미리보기") {
                     Text("미리보기에서 보이는 구도로 사진을 잘라 저장해요. 두 손가락 또는 배율 슬라이더로 확대·축소하고, 화면을 눌러 초점을 맞출 수 있어요. 위쪽 해 모양 버튼에서 밝기를 조절하세요. 후면 초광각을 지원하면 최소 배율 버튼으로 더 넓게 촬영할 수 있어요. 카메라마다 최소 배율이 다르며, 확대할수록 화질이 낮아질 수 있어요.")
