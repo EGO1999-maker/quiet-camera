@@ -1,0 +1,41 @@
+name: Publish built IPA
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: 'Successful Build iPhone IPA run ID'
+        required: true
+        type: string
+      version:
+        description: 'New release tag, for example v1.0.0'
+        required: true
+        default: 'v1.0.0'
+        type: string
+permissions:
+  actions: read
+  contents: write
+jobs:
+  publish:
+    if: github.event.repository.private == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Download successful build and publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          BUILD_RUN: ${{ inputs.run_id }}
+          VERSION: ${{ inputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$BUILD_RUN" =~ ^[0-9]+$ ]]
+          [[ "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          test "$(gh run view "$BUILD_RUN" --json conclusion --jq .conclusion)" = success
+          test "$(gh run view "$BUILD_RUN" --json workflowName --jq .workflowName)" = 'Build iPhone IPA'
+          COMMIT=$(gh run view "$BUILD_RUN" --json headSha --jq .headSha)
+          gh run download "$BUILD_RUN" --name QuietCamera-IPA --dir release
+          (cd release && sed 's|build/QuietCamera.ipa|QuietCamera.ipa|' QuietCamera.ipa.sha256 | sha256sum --check)
+          printf '%s\n' 'Minimal iPhone camera with front/back switching and on-device photo saving.' '' 'Install QuietCamera.ipa using SideStore. The IPA is unsigned; SideStore signs it.' '' 'iOS 16 or later. Portrait orientation. Camera sound and real-device operation still require testing on your iPhone.' > notes.txt
+          gh release create "$VERSION" release/QuietCamera.ipa release/QuietCamera.ipa.sha256 \
+            --target "$COMMIT" --title "Quiet Camera $VERSION" --notes-file notes.txt
