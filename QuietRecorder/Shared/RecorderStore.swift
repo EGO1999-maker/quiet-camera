@@ -90,11 +90,11 @@ final class RecorderStore: NSObject, ObservableObject, AVAudioRecorderDelegate, 
     }
 
     func requestPermission() async -> Bool {
-        let session = AVAudioSession.sharedInstance()
-        if session.recordPermission == .granted { return true }
-        if session.recordPermission == .denied { return false }
+        let application = AVAudioApplication.shared
+        if application.recordPermission == .granted { return true }
+        if application.recordPermission == .denied { return false }
         return await withCheckedContinuation { continuation in
-            session.requestRecordPermission { continuation.resume(returning: $0) }
+            AVAudioApplication.requestRecordPermission { continuation.resume(returning: $0) }
         }
     }
 
@@ -105,7 +105,7 @@ final class RecorderStore: NSObject, ObservableObject, AVAudioRecorderDelegate, 
         defer { busy = false; onChange?() }
         error = nil
         let granted: Bool
-        if remotely { granted = AVAudioSession.sharedInstance().recordPermission == .granted }
+        if remotely { granted = AVAudioApplication.shared.recordPermission == .granted }
         else { granted = await requestPermission() }
         guard granted else {
             notice = "이 기기에서 앱을 열고 마이크 접근을 허용해 주세요"
@@ -124,9 +124,11 @@ final class RecorderStore: NSObject, ObservableObject, AVAudioRecorderDelegate, 
             try session.setCategory(.record, mode: .default)
             #endif
             try session.setActive(true)
+            #if os(iOS)
             if let mic = session.availableInputs?.first(where: { $0.portType == .builtInMic }) {
                 try session.setPreferredInput(mic)
             }
+            #endif
             guard session.currentRoute.inputs.contains(where: { $0.portType == .builtInMic }) else {
                 throw NSError(domain: "QuietRecorder", code: 1, userInfo: [NSLocalizedDescriptionKey: "내장 마이크를 사용할 수 없어요"])
             }
