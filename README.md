@@ -23,7 +23,7 @@
 1. 이 프로젝트를 **공개 GitHub 저장소**의 최상위에 올립니다. `.github` 폴더를 포함합니다.
 2. **Actions → Build iPhone IPA → Run workflow**를 실행합니다. `main`에 코드 변경을 올려도 실행됩니다.
 3. 성공한 실행의 **Artifacts → QuietCamera-IPA**를 다운로드해 ZIP을 풉니다.
-4. `QuietCamera.ipa`를 아이폰에 전달하고 SideStore의 **My Apps → +**에서 선택합니다.
+4. 버전이 붙은 `QuietCamera-v1.1.0.ipa` 같은 파일을 아이폰에 전달하고 SideStore의 **My Apps → +**에서 선택합니다.
 5. SideStore로 서명·설치한 후 앱을 열어 카메라와 사진 추가 권한을 허용합니다.
 
 IPA는 서명되지 않은 상태이며 SideStore가 서명합니다. 빌드 서버에 Apple 계정·암호·인증서를 넣을 필요가 없습니다. 기존 앱 때문에 무료 계정 설치 한도에 도달했다면 SideStore에서 앱 슬롯을 확보해야 합니다. 설치 완료를 위해 기기에 따라 개발자 모드 활성화가 필요합니다.
@@ -32,7 +32,7 @@ IPA는 서명되지 않은 상태이며 SideStore가 서명합니다. 빌드 서
 
 ## 맥에서 직접 빌드하기
 
-Xcode 및 Python 3가 있는 맥에서 `bash scripts/build_ipa.sh`를 실행합니다. 결과는 `build/QuietCamera.ipa`입니다. `QuietCamera.xcodeproj`를 Xcode로 열 수도 있습니다. 프로젝트를 재생성하려면 `python3 scripts/generate_project.py`를 실행합니다.
+Xcode 및 Python 3가 있는 맥에서 `bash scripts/build_ipa.sh`를 실행합니다. 결과는 `build/QuietCamera-v<앱 버전>.ipa`입니다. 앱 버전을 읽어 파일명에 자동으로 붙이며, 체크섬 파일에도 같은 버전이 포함됩니다. `QuietCamera.xcodeproj`를 Xcode로 열 수도 있습니다. 프로젝트를 재생성하려면 `python3 scripts/generate_project.py`를 실행합니다.
 
 ## 실기기 확인
 

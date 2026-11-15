@@ -13,6 +13,9 @@ xcodebuild -project QuietCamera.xcodeproj -scheme QuietCamera \
 mkdir -p build/package/Payload
 ditto build/QuietCamera.xcarchive/Products/Applications/QuietCamera.app \
   build/package/Payload/QuietCamera.app
-(cd build/package && /usr/bin/zip -qry ../QuietCamera.ipa Payload)
-python3 scripts/verify_ipa.py build/QuietCamera.ipa
-shasum -a 256 build/QuietCamera.ipa > build/QuietCamera.ipa.sha256
+VERSION=$(python3 -c 'import plistlib; print(plistlib.load(open("build/package/Payload/QuietCamera.app/Info.plist", "rb"))["CFBundleShortVersionString"])')
+[[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+IPA="QuietCamera-v${VERSION}.ipa"
+(cd build/package && /usr/bin/zip -qry "../$IPA" Payload)
+python3 scripts/verify_ipa.py "build/$IPA"
+(cd build && shasum -a 256 "$IPA" > "$IPA.sha256")

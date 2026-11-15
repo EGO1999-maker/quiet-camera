@@ -35,7 +35,20 @@ jobs:
           test "$(gh run view "$BUILD_RUN" --json workflowName --jq .workflowName)" = 'Build iPhone IPA'
           COMMIT=$(gh run view "$BUILD_RUN" --json headSha --jq .headSha)
           gh run download "$BUILD_RUN" --name QuietCamera-IPA --dir release
-          (cd release && sed 's|build/QuietCamera.ipa|QuietCamera.ipa|' QuietCamera.ipa.sha256 | sha256sum --check)
-          printf '%s\n' 'Minimal iPhone camera with front/back switching and on-device photo saving.' '' 'Install QuietCamera.ipa using SideStore. The IPA is unsigned; SideStore signs it.' '' 'iOS 16 or later. Portrait orientation. Camera sound and real-device operation still require testing on your iPhone.' > notes.txt
-          gh release create "$VERSION" release/QuietCamera.ipa release/QuietCamera.ipa.sha256 \
+          IPA="QuietCamera-${VERSION}.ipa"
+          if [[ -f release/QuietCamera.ipa ]]; then
+            (cd release && sed 's|build/QuietCamera.ipa|QuietCamera.ipa|' QuietCamera.ipa.sha256 | sha256sum --check)
+            mv release/QuietCamera.ipa "release/$IPA"
+            (cd release && sha256sum "$IPA" > "$IPA.sha256")
+          else
+            (cd release && sha256sum --check "$IPA.sha256")
+          fi
+          python3 - "$VERSION" "release/$IPA" <<'PY'
+          import plistlib, sys, zipfile
+          with zipfile.ZipFile(sys.argv[2]) as archive:
+              info = plistlib.loads(archive.read('Payload/QuietCamera.app/Info.plist'))
+          assert 'v' + info['CFBundleShortVersionString'] == sys.argv[1], 'Release tag must match app version'
+          PY
+          printf '%s\n' 'Minimal iPhone camera with front/back switching and on-device photo saving.' '' "Install $IPA using SideStore. The IPA is unsigned; SideStore signs it." '' 'iOS 16 or later. Portrait orientation. Camera sound and real-device operation still require testing on your iPhone.' > notes.txt
+          gh release create "$VERSION" "release/$IPA" "release/$IPA.sha256" \
             --target "$COMMIT" --title "Quiet Camera $VERSION" --notes-file notes.txt

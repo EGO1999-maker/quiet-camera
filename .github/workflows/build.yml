@@ -28,8 +28,8 @@ jobs:
         with:
           name: QuietCamera-IPA
           path: |
-            build/QuietCamera.ipa
-            build/QuietCamera.ipa.sha256
+            build/QuietCamera-v*.ipa
+            build/QuietCamera-v*.ipa.sha256
           if-no-files-found: error
           retention-days: 3
 
@@ -54,21 +54,31 @@ jobs:
           set -euo pipefail
           VERSION=$(python3 -c 'import plistlib; print("v" + plistlib.load(open("QuietCamera/Info.plist", "rb"))["CFBundleShortVersionString"])')
           [[ "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          IPA="QuietCamera-${VERSION}.ipa"
           if gh release view "$VERSION" >/dev/null 2>&1; then
-            echo "Release $VERSION already exists; keeping its original files."
+            # Keep the published binary and old links; add a versioned download of those exact bytes.
+            if gh release view "$VERSION" --json assets --jq '.assets[].name' | grep -Fxq "$IPA"; then
+              echo "Versioned download already exists."
+              exit 0
+            fi
+            gh release download "$VERSION" --pattern QuietCamera.ipa --pattern QuietCamera.ipa.sha256 --dir legacy
+            (cd legacy && sed 's|build/QuietCamera.ipa|QuietCamera.ipa|' QuietCamera.ipa.sha256 | sha256sum --check)
+            mv legacy/QuietCamera.ipa "legacy/$IPA"
+            (cd legacy && sha256sum "$IPA" > "$IPA.sha256")
+            gh release upload "$VERSION" "legacy/$IPA" "legacy/$IPA.sha256"
             exit 0
           fi
           gh run download "$BUILD_RUN" --name QuietCamera-IPA --dir release
-          (cd release && sed 's|build/QuietCamera.ipa|QuietCamera.ipa|' QuietCamera.ipa.sha256 | sha256sum --check)
-          python3 scripts/verify_ipa.py release/QuietCamera.ipa
+          (cd release && sha256sum --check "$IPA.sha256")
+          python3 scripts/verify_ipa.py "release/$IPA"
           printf '%s\n' \
             'Full-screen camera preview with front/back switching and on-device photo saving.' \
             '' \
             'Settings supports add-only photo access and optional selected/all photo access. Choose the actual permission on your iPhone.' \
             '' \
-            'Install QuietCamera.ipa using SideStore. The IPA is unsigned; SideStore signs it.' \
+            "Install $IPA using SideStore. The IPA is unsigned; SideStore signs it." \
             '' \
             'The full-screen preview crops its edges to fill the display; saved photos retain the entire video frame.' \
             'iOS 16 or later. Portrait orientation. Camera sound, permissions and real-device layout still require testing on your iPhone.' > notes.txt
-          gh release create "$VERSION" release/QuietCamera.ipa release/QuietCamera.ipa.sha256 \
+          gh release create "$VERSION" "release/$IPA" "release/$IPA.sha256" \
             --target "$BUILD_COMMIT" --title "Quiet Camera $VERSION" --notes-file notes.txt
