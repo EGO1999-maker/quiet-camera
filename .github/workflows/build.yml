@@ -32,3 +32,43 @@ jobs:
             build/QuietCamera.ipa.sha256
           if-no-files-found: error
           retention-days: 3
+
+  publish:
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: read
+      contents: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Publish verified IPA when its version is new
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          BUILD_RUN: ${{ github.run_id }}
+          BUILD_COMMIT: ${{ github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION=$(python3 -c 'import plistlib; print("v" + plistlib.load(open("QuietCamera/Info.plist", "rb"))["CFBundleShortVersionString"])')
+          [[ "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          if gh release view "$VERSION" >/dev/null 2>&1; then
+            echo "Release $VERSION already exists; keeping its original files."
+            exit 0
+          fi
+          gh run download "$BUILD_RUN" --name QuietCamera-IPA --dir release
+          (cd release && sed 's|build/QuietCamera.ipa|QuietCamera.ipa|' QuietCamera.ipa.sha256 | sha256sum --check)
+          python3 scripts/verify_ipa.py release/QuietCamera.ipa
+          printf '%s\n' \
+            'Full-screen camera preview with front/back switching and on-device photo saving.' \
+            '' \
+            'Settings supports add-only photo access and optional selected/all photo access. Choose the actual permission on your iPhone.' \
+            '' \
+            'Install QuietCamera.ipa using SideStore. The IPA is unsigned; SideStore signs it.' \
+            '' \
+            'The full-screen preview crops its edges to fill the display; saved photos retain the entire video frame.' \
+            'iOS 16 or later. Portrait orientation. Camera sound, permissions and real-device layout still require testing on your iPhone.' > notes.txt
+          gh release create "$VERSION" release/QuietCamera.ipa release/QuietCamera.ipa.sha256 \
+            --target "$BUILD_COMMIT" --title "Quiet Camera $VERSION" --notes-file notes.txt

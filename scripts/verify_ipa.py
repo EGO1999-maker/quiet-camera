@@ -13,6 +13,7 @@ with zipfile.ZipFile(sys.argv[1]) as archive:
     assert binary[:4] in (b"\xcf\xfa\xed\xfe", b"\xca\xfe\xba\xbe"), "Not a Mach-O binary"
     assert info.get("NSCameraUsageDescription")
     assert info.get("NSPhotoLibraryAddUsageDescription")
+    assert info.get("NSPhotoLibraryUsageDescription")
     assert not info.get("NSMicrophoneUsageDescription")
     assert not info.get("UIBackgroundModes")
     assert info["UISupportedInterfaceOrientations"] == ["UIInterfaceOrientationPortrait"]
