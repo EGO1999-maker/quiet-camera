@@ -220,7 +220,7 @@ private struct CameraSettingsView: View {
                     Text("촬영한 사진을 저장하려면 ‘사진 추가만’으로 충분해요. 더 넓은 접근을 원하면 ‘선택한 사진·전체 사진 접근 설정’을 누르고 아이폰의 권한 화면에서 범위를 선택하세요. 이미 허용한 범위를 줄이거나 선택한 사진을 변경할 때는 아이폰 설정을 이용하세요.")
                 }
                 Section("미리보기") {
-                    Text("미리보기에서 보이는 구도로 사진을 잘라 저장해요. 두 손가락 또는 배율 슬라이더로 확대·축소하고, 화면을 눌러 초점을 맞출 수 있어요. 위쪽 해 모양 버튼에서 밝기를 조절하세요. 줌은 기본 렌즈의 디지털 확대이며 0.5배 초광각 렌즈 전환은 포함하지 않아요.")
+                    Text("미리보기에서 보이는 구도로 사진을 잘라 저장해요. 두 손가락 또는 배율 슬라이더로 확대·축소하고, 화면을 눌러 초점을 맞출 수 있어요. 위쪽 해 모양 버튼에서 밝기를 조절하세요. 후면 초광각을 지원하면 최소 배율 버튼으로 더 넓게 촬영할 수 있어요. 카메라마다 최소 배율이 다르며, 확대할수록 화질이 낮아질 수 있어요.")
                         .font(.footnote).foregroundStyle(.secondary)
                 }
                 Section {
@@ -455,3 +455,4 @@ final class PhotoScrollView: UIScrollView, UIScrollViewDelegate {
     func viewForZooming(in scrollView: UIScrollView) -> UIView? { imageView }
     @objc private func resetZoom() { setZoomScale(1, animated: true) }
 }
+
