@@ -120,22 +120,25 @@ struct CameraView: View {
     }
 
     private var zoomControl: some View {
-        HStack(spacing: 12) {
-            if camera.minimumZoom < 0.99 {
-                Button(String(format: "%.1f×", Double(camera.minimumZoom))) {
-                    camera.setZoom(camera.minimumZoom)
-                }
-                .frame(minWidth: 40, minHeight: 40)
-                .accessibilityLabel("초광각으로 축소")
+        HStack(spacing: 8) {
+            Button(String(format: "%g×", Double(camera.minimumZoom))) {
+                camera.setZoom(camera.minimumZoom)
             }
-            Button("1×") { camera.setZoom(1) }.frame(minWidth: 40, minHeight: 40)
-                .accessibilityLabel("기본 배율로 축소")
+            .frame(minWidth: 44, minHeight: 44)
+            .accessibilityLabel("최소 배율로 축소")
+            Text(String(format: "%.1f×", Double(camera.zoom)))
+                .fontWeight(.semibold).foregroundStyle(mint).frame(width: 44)
+                .accessibilityLabel("현재 배율")
+                .accessibilityValue(String(format: "%.1f배", Double(camera.zoom)))
             Slider(value: Binding(get: { Double(camera.zoom) }, set: { camera.setZoom(CGFloat($0)) }),
                    in: Double(camera.minimumZoom)...Double(max(camera.maximumZoom, camera.minimumZoom + 0.001)))
                 .tint(mint).accessibilityLabel("카메라 확대 축소")
-            Text(String(format: "%.1f×", Double(camera.zoom)))
-                .monospacedDigit().font(.callout.weight(.semibold)).frame(width: 50)
+            Text(String(format: "%g×", Double(camera.maximumZoom)))
+                .foregroundStyle(.white.opacity(0.8)).frame(minWidth: 32)
+                .accessibilityLabel("최대 배율")
+                .accessibilityValue(String(format: "%.1f배", Double(camera.maximumZoom)))
         }
+        .font(.callout).monospacedDigit()
         .padding(.horizontal, 12).background(.black.opacity(0.45), in: Capsule())
         .disabled(!camera.ready || camera.busy || camera.maximumZoom <= camera.minimumZoom)
     }
@@ -455,4 +458,3 @@ final class PhotoScrollView: UIScrollView, UIScrollViewDelegate {
     func viewForZooming(in scrollView: UIScrollView) -> UIView? { imageView }
     @objc private func resetZoom() { setZoomScale(1, animated: true) }
 }
-
