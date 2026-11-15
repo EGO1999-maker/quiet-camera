@@ -72,14 +72,14 @@ jobs:
           (cd release && sha256sum --check "$IPA.sha256")
           python3 scripts/verify_ipa.py "release/$IPA"
           printf '%s\n' \
-            'Capture-order thumbnail gallery, persistent capture history, zoomable photo review and confirmed deletion from the Photos library.' \
+            'Adds ultra-wide zoom-out on supported rear cameras, with a minimum-zoom button, pinch and slider control. Retains the capture-order gallery and confirmed photo deletion.' \
             '' \
             'Capture supports add-only access; gallery viewing and deletion require selected/all photo access. History starts with v1.3.0 captures; older photos remain in Photos. Update the existing app to retain history.' \
             '' \
             "Install $IPA using SideStore. The IPA is unsigned; SideStore signs it." \
             '' \
             'Saved photos are center-cropped to match the full-screen preview. Front-camera mirroring is preserved.' \
-            'Basic wide-angle camera; up to 8x digital zoom within device limits. No ultra-wide/telephoto lens switching.' \
+            'Wide lens remains 1x. Ultra-wide minimum zoom is usually 0.5x; unsupported/front cameras retain their actual minimum. Up to 8x displayed zoom within device limits.' \
             'iOS 16 or later. Portrait orientation. Camera sound, permissions and real-device layout still require testing on your iPhone.' > notes.txt
           gh release create "$VERSION" "release/$IPA" "release/$IPA.sha256" \
             --target "$BUILD_COMMIT" --title "Quiet Camera $VERSION" --notes-file notes.txt

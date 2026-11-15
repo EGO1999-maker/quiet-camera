@@ -7,6 +7,8 @@ swiftc QuietCamera/CaptureGeometry.swift scripts/CaptureGeometryTests.swift -o b
 build/check-capture-geometry
 swiftc QuietCamera/GalleryIndex.swift scripts/GalleryIndexTests.swift -o build/check-gallery-index
 build/check-gallery-index
+swiftc QuietCamera/CameraZoom.swift scripts/CameraZoomTests.swift -o build/check-camera-zoom
+build/check-camera-zoom
 xcodebuild -project QuietCamera.xcodeproj -scheme QuietCamera \
   -configuration Release -destination 'generic/platform=iOS' \
   -archivePath "$PWD/build/QuietCamera.xcarchive" \

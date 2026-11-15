@@ -121,6 +121,13 @@ struct CameraView: View {
 
     private var zoomControl: some View {
         HStack(spacing: 12) {
+            if camera.minimumZoom < 0.99 {
+                Button(String(format: "%.1f×", Double(camera.minimumZoom))) {
+                    camera.setZoom(camera.minimumZoom)
+                }
+                .frame(minWidth: 40, minHeight: 40)
+                .accessibilityLabel("초광각으로 축소")
+            }
             Button("1×") { camera.setZoom(1) }.frame(minWidth: 40, minHeight: 40)
                 .accessibilityLabel("기본 배율로 축소")
             Slider(value: Binding(get: { Double(camera.zoom) }, set: { camera.setZoom(CGFloat($0)) }),

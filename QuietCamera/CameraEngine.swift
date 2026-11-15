@@ -111,7 +111,10 @@ final class CameraEngine: NSObject, ObservableObject, AVCaptureVideoDataOutputSa
     private func startIfNeeded() {
         guard active, AVCaptureDevice.authorizationStatus(for: .video) == .authorized else { return }
         do {
-            if !configured { try configure() }
+            if !configured {
+                try configure()
+                try resetDeviceZoom()
+            }
             publishDeviceControls()
             waitingForFirstFrame = true
             if !session.isRunning { session.startRunning() }
@@ -122,7 +125,10 @@ final class CameraEngine: NSObject, ObservableObject, AVCaptureVideoDataOutputSa
     }
 
     private func makeInput(_ position: AVCaptureDevice.Position) throws -> AVCaptureDeviceInput {
-        guard let device = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: position) else {
+        let types: [AVCaptureDevice.DeviceType] = position == .back
+            ? [.builtInTripleCamera, .builtInDualWideCamera, .builtInWideAngleCamera]
+            : [.builtInWideAngleCamera]
+        guard let device = types.compactMap({ AVCaptureDevice.default($0, for: .video, position: position) }).first else {
             throw CameraError.unavailable
         }
         try device.lockForConfiguration()
@@ -163,17 +169,38 @@ final class CameraEngine: NSObject, ObservableObject, AVCaptureVideoDataOutputSa
         }
     }
 
+    private func zoomScale(for device: AVCaptureDevice) -> CameraZoom {
+        var wideSwitch: Double?
+        let lenses = device.constituentDevices
+        if lenses.contains(where: { $0.deviceType == .builtInUltraWideCamera }),
+           let wideIndex = lenses.firstIndex(where: { $0.deviceType == .builtInWideAngleCamera }),
+           wideIndex > 0, device.virtualDeviceSwitchOverVideoZoomFactors.indices.contains(wideIndex - 1) {
+            wideSwitch = device.virtualDeviceSwitchOverVideoZoomFactors[wideIndex - 1].doubleValue
+        }
+        return CameraZoom(wideSwitchFactor: wideSwitch,
+                          minimum: Double(device.minAvailableVideoZoomFactor),
+                          maximum: Double(device.maxAvailableVideoZoomFactor))
+    }
+
+    private func resetDeviceZoom() throws {
+        guard let device = input?.device else { return }
+        try device.lockForConfiguration()
+        defer { device.unlockForConfiguration() }
+        device.videoZoomFactor = CGFloat(zoomScale(for: device).nativeFactor(for: 1))
+    }
+
     // All device reads/writes occur on the same queue as capture and camera switching.
     private func publishDeviceControls() {
         guard let device = input?.device else { return }
-        let lower = device.minAvailableVideoZoomFactor
-        let upper = max(lower, min(device.maxAvailableVideoZoomFactor, 8))
+        let scale = zoomScale(for: device)
+        let lower = CGFloat(scale.minimum)
+        let upper = CGFloat(scale.maximum)
         let biasLower = max(device.minExposureTargetBias, -2)
         let biasUpper = min(device.maxExposureTargetBias, 2)
         let canExpose = device.isExposureModeSupported(.continuousAutoExposure) && biasUpper > biasLower
         let canFocus = (device.isFocusPointOfInterestSupported && device.isFocusModeSupported(.autoFocus)) ||
             (device.isExposurePointOfInterestSupported && device.isExposureModeSupported(.continuousAutoExposure))
-        let currentZoom = device.videoZoomFactor
+        let currentZoom = CGFloat(scale.displayFactor(for: Double(device.videoZoomFactor)))
         let currentBias = device.exposureTargetBias
         publish {
             $0.minimumZoom = lower; $0.maximumZoom = upper; $0.zoom = currentZoom
@@ -191,10 +218,9 @@ final class CameraEngine: NSObject, ObservableObject, AVCaptureVideoDataOutputSa
             do {
                 try device.lockForConfiguration()
                 defer { device.unlockForConfiguration() }
-                let lower = device.minAvailableVideoZoomFactor
-                let upper = max(lower, min(device.maxAvailableVideoZoomFactor, 8))
-                let value = min(max(requested, lower), upper)
-                device.videoZoomFactor = value
+                let scale = self.zoomScale(for: device)
+                device.videoZoomFactor = CGFloat(scale.nativeFactor(for: Double(requested)))
+                let value = CGFloat(scale.displayFactor(for: Double(device.videoZoomFactor)))
                 self.publish { $0.zoom = value }
             } catch { self.publish { $0.message = "배율을 변경하지 못했어요. 다시 시도해 주세요." } }
         }
@@ -276,6 +302,7 @@ final class CameraEngine: NSObject, ObservableObject, AVCaptureVideoDataOutputSa
                 }
                 self.setCaptureFormat()
                 self.session.commitConfiguration()
+                if self.input?.device.uniqueID == next.device.uniqueID { try self.resetDeviceZoom() }
                 self.publishDeviceControls()
                 self.waitingForFirstFrame = true
                 let isFront = self.input?.device.position == .front

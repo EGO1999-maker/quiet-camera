@@ -136,6 +136,24 @@
 			<key>fileRef</key>
 			<string>9CE851162AC67CE656AE4EC7</string>
 		</dict>
+		<key>E5D37C2C0D6344CE20CD63D9</key>
+		<dict>
+			<key>isa</key>
+			<string>PBXFileReference</string>
+			<key>lastKnownFileType</key>
+			<string>sourcecode.swift</string>
+			<key>path</key>
+			<string>CameraZoom.swift</string>
+			<key>sourceTree</key>
+			<string>&lt;group&gt;</string>
+		</dict>
+		<key>8BCDAC0E891A708B4D77DC39</key>
+		<dict>
+			<key>isa</key>
+			<string>PBXBuildFile</string>
+			<key>fileRef</key>
+			<string>E5D37C2C0D6344CE20CD63D9</string>
+		</dict>
 		<key>8BF729FFE074CAEE622C0292</key>
 		<dict>
 			<key>isa</key>
@@ -191,6 +209,7 @@
 				<string>8B2C753D0601287385CB7213</string>
 				<string>5111CE7BE899B4E49E45804D</string>
 				<string>9CE851162AC67CE656AE4EC7</string>
+				<string>E5D37C2C0D6344CE20CD63D9</string>
 				<string>8BF729FFE074CAEE622C0292</string>
 				<string>06271BAF49532C879AA3C58B</string>
 			</array>
@@ -239,6 +258,7 @@
 				<string>44F96EF0044CDEEEA1806AA5</string>
 				<string>FFEE9CEF1E2E1527D1C6ACE2</string>
 				<string>2F58B5D5B8E468FE4448E0D8</string>
+				<string>8BCDAC0E891A708B4D77DC39</string>
 			</array>
 			<key>runOnlyForDeploymentPostprocessing</key>
 			<integer>0</integer>
