@@ -101,6 +101,10 @@ final class RecorderStore: NSObject, ObservableObject, AVAudioRecorderDelegate, 
     @discardableResult
     func start(id: UUID = UUID(), remotely: Bool = false, expiresAt: Date? = nil) async -> Bool {
         guard active == nil, !busy else { return false }
+        guard !FileManager.default.fileExists(atPath: directory.appendingPathComponent(id.uuidString + ".m4a").path) else {
+            notice = "이미 처리된 녹음 요청이에요. 저장 목록을 확인해 주세요"
+            return false
+        }
         busy = true
         defer { busy = false; onChange?() }
         error = nil

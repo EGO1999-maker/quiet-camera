@@ -228,10 +228,9 @@ final class RecorderLink: NSObject, ObservableObject, WCSessionDelegate {
         // WC removes its temporary file when this delegate returns. Copy before crossing queues.
         let staging = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("Incoming", isDirectory: true)
-        let saved = staging.appendingPathComponent(clip.id.uuidString + ".m4a")
+        let saved = staging.appendingPathComponent(clip.id.uuidString + "-" + UUID().uuidString + ".m4a")
         do {
             try FileManager.default.createDirectory(at: staging, withIntermediateDirectories: true)
-            if FileManager.default.fileExists(atPath: saved.path) { try FileManager.default.removeItem(at: saved) }
             try FileManager.default.copyItem(at: file.fileURL, to: saved)
             Task { @MainActor in
                 do {
