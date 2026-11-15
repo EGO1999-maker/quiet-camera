@@ -72,13 +72,14 @@ jobs:
           (cd release && sha256sum --check "$IPA.sha256")
           python3 scripts/verify_ipa.py "release/$IPA"
           printf '%s\n' \
-            'Full-screen camera preview with front/back switching and on-device photo saving.' \
+            'Full-screen camera with pinch/slider digital zoom, tap focus/exposure, brightness control and last-photo review.' \
             '' \
             'Settings supports add-only photo access and optional selected/all photo access. Choose the actual permission on your iPhone.' \
             '' \
             "Install $IPA using SideStore. The IPA is unsigned; SideStore signs it." \
             '' \
-            'The full-screen preview crops its edges to fill the display; saved photos retain the entire video frame.' \
+            'Saved photos are center-cropped to match the full-screen preview. Front-camera mirroring is preserved.' \
+            'Basic wide-angle camera; up to 8x digital zoom within device limits. No ultra-wide/telephoto lens switching.' \
             'iOS 16 or later. Portrait orientation. Camera sound, permissions and real-device layout still require testing on your iPhone.' > notes.txt
           gh release create "$VERSION" "release/$IPA" "release/$IPA.sha256" \
             --target "$BUILD_COMMIT" --title "Quiet Camera $VERSION" --notes-file notes.txt

@@ -13,6 +13,14 @@ final class CameraEngine: NSObject, ObservableObject, AVCaptureVideoDataOutputSa
     @Published private(set) var thumbnail: UIImage?
     @Published var message: String?
     @Published private(set) var permissionDenied = false
+    @Published private(set) var zoom: CGFloat = 1
+    @Published private(set) var minimumZoom: CGFloat = 1
+    @Published private(set) var maximumZoom: CGFloat = 1
+    @Published private(set) var exposureBias: Float = 0
+    @Published private(set) var minimumExposureBias: Float = -2
+    @Published private(set) var maximumExposureBias: Float = 2
+    @Published private(set) var canAdjustExposure = false
+    @Published private(set) var canTargetFocusOrExposure = false
 
     let session = AVCaptureSession()
     private let queue = DispatchQueue(label: "QuietCamera.capture", qos: .userInitiated)
@@ -24,6 +32,7 @@ final class CameraEngine: NSObject, ObservableObject, AVCaptureVideoDataOutputSa
     private var waitingForFirstFrame = true
     private var captureID: UUID?
     private var pendingFrame = false
+    private var pendingViewport = CGSize.zero
     private var observers: [NSObjectProtocol] = []
 
     override init() {
@@ -103,6 +112,7 @@ final class CameraEngine: NSObject, ObservableObject, AVCaptureVideoDataOutputSa
         guard active, AVCaptureDevice.authorizationStatus(for: .video) == .authorized else { return }
         do {
             if !configured { try configure() }
+            publishDeviceControls()
             waitingForFirstFrame = true
             if !session.isRunning { session.startRunning() }
             publish { $0.status = "카메라 준비 중" }
@@ -153,6 +163,102 @@ final class CameraEngine: NSObject, ObservableObject, AVCaptureVideoDataOutputSa
         }
     }
 
+    // All device reads/writes occur on the same queue as capture and camera switching.
+    private func publishDeviceControls() {
+        guard let device = input?.device else { return }
+        let lower = device.minAvailableVideoZoomFactor
+        let upper = max(lower, min(device.maxAvailableVideoZoomFactor, 8))
+        let biasLower = max(device.minExposureTargetBias, -2)
+        let biasUpper = min(device.maxExposureTargetBias, 2)
+        let canExpose = device.isExposureModeSupported(.continuousAutoExposure) && biasUpper > biasLower
+        let canFocus = (device.isFocusPointOfInterestSupported && device.isFocusModeSupported(.autoFocus)) ||
+            (device.isExposurePointOfInterestSupported && device.isExposureModeSupported(.continuousAutoExposure))
+        let currentZoom = device.videoZoomFactor
+        let currentBias = device.exposureTargetBias
+        publish {
+            $0.minimumZoom = lower; $0.maximumZoom = upper; $0.zoom = currentZoom
+            $0.minimumExposureBias = biasLower; $0.maximumExposureBias = biasUpper
+            $0.exposureBias = currentBias; $0.canAdjustExposure = canExpose
+            $0.canTargetFocusOrExposure = canFocus
+        }
+    }
+
+    func setZoom(_ requested: CGFloat) {
+        guard requested.isFinite else { return }
+        queue.async {
+            guard self.active, self.captureID == nil, !self.waitingForFirstFrame,
+                  let device = self.input?.device else { return }
+            do {
+                try device.lockForConfiguration()
+                defer { device.unlockForConfiguration() }
+                let lower = device.minAvailableVideoZoomFactor
+                let upper = max(lower, min(device.maxAvailableVideoZoomFactor, 8))
+                let value = min(max(requested, lower), upper)
+                device.videoZoomFactor = value
+                self.publish { $0.zoom = value }
+            } catch { self.publish { $0.message = "배율을 변경하지 못했어요. 다시 시도해 주세요." } }
+        }
+    }
+
+    func focus(at point: CGPoint) {
+        guard point.x.isFinite, point.y.isFinite else { return }
+        queue.async {
+            guard self.active, self.captureID == nil, !self.waitingForFirstFrame,
+                  let device = self.input?.device else { return }
+            do {
+                try device.lockForConfiguration()
+                defer { device.unlockForConfiguration() }
+                let target = CGPoint(x: min(max(point.x, 0), 1), y: min(max(point.y, 0), 1))
+                var adjusted = false
+                if device.isFocusPointOfInterestSupported && device.isFocusModeSupported(.autoFocus) {
+                    device.focusPointOfInterest = target
+                    device.focusMode = .autoFocus
+                    adjusted = true
+                }
+                if device.isExposurePointOfInterestSupported && device.isExposureModeSupported(.continuousAutoExposure) {
+                    device.exposurePointOfInterest = target
+                    device.exposureMode = .continuousAutoExposure
+                    adjusted = true
+                }
+                self.publish { $0.status = adjusted ? "선택한 위치에 초점·노출 조절 중" : "이 카메라는 터치 초점을 지원하지 않아요" }
+            } catch { self.publish { $0.message = "초점을 조절하지 못했어요. 다시 시도해 주세요." } }
+        }
+    }
+
+    func setExposureBias(_ requested: Float) {
+        guard requested.isFinite else { return }
+        queue.async {
+            guard self.active, self.captureID == nil, !self.waitingForFirstFrame,
+                  let device = self.input?.device,
+                  device.isExposureModeSupported(.continuousAutoExposure) else { return }
+            do {
+                try device.lockForConfiguration()
+                defer { device.unlockForConfiguration() }
+                let value = min(max(requested, max(device.minExposureTargetBias, -2)), min(device.maxExposureTargetBias, 2))
+                device.setExposureTargetBias(value, completionHandler: nil)
+                self.publish { $0.exposureBias = value }
+            } catch { self.publish { $0.message = "밝기를 조절하지 못했어요. 다시 시도해 주세요." } }
+        }
+    }
+
+    func resetFocusAndExposure() {
+        queue.async {
+            guard self.active, self.captureID == nil, let device = self.input?.device else { return }
+            do {
+                try device.lockForConfiguration()
+                defer { device.unlockForConfiguration() }
+                if device.isFocusPointOfInterestSupported { device.focusPointOfInterest = CGPoint(x: 0.5, y: 0.5) }
+                if device.isFocusModeSupported(.continuousAutoFocus) { device.focusMode = .continuousAutoFocus }
+                if device.isExposurePointOfInterestSupported { device.exposurePointOfInterest = CGPoint(x: 0.5, y: 0.5) }
+                if device.isExposureModeSupported(.continuousAutoExposure) {
+                    device.exposureMode = .continuousAutoExposure
+                    device.setExposureTargetBias(0, completionHandler: nil)
+                }
+                self.publish { $0.exposureBias = 0; $0.status = "자동 초점·밝기로 복원했어요" }
+            } catch { self.publish { $0.message = "자동 설정으로 복원하지 못했어요." } }
+        }
+    }
+
     func switchCamera() {
         queue.async {
             guard self.active, self.configured, self.captureID == nil,
@@ -170,6 +276,7 @@ final class CameraEngine: NSObject, ObservableObject, AVCaptureVideoDataOutputSa
                 }
                 self.setCaptureFormat()
                 self.session.commitConfiguration()
+                self.publishDeviceControls()
                 self.waitingForFirstFrame = true
                 let isFront = self.input?.device.position == .front
                 self.publish { $0.front = isFront }
@@ -179,13 +286,16 @@ final class CameraEngine: NSObject, ObservableObject, AVCaptureVideoDataOutputSa
         }
     }
 
-    func capture() {
+    func capture(viewportSize: CGSize) {
+        guard viewportSize.width.isFinite, viewportSize.height.isFinite,
+              viewportSize.width > 0, viewportSize.height > 0 else { return }
         queue.async {
             guard self.active, self.session.isRunning, !self.session.isInterrupted,
                   !self.waitingForFirstFrame, self.captureID == nil else { return }
             let id = UUID()
             self.captureID = id
             self.pendingFrame = true
+            self.pendingViewport = viewportSize
             self.publish { $0.busy = true; $0.status = "촬영 중" }
             self.queue.asyncAfter(deadline: .now() + 3) {
                 if self.captureID == id && self.pendingFrame {
@@ -210,7 +320,8 @@ final class CameraEngine: NSObject, ObservableObject, AVCaptureVideoDataOutputSa
               let buffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
         pendingFrame = false
         let ciImage = CIImage(cvPixelBuffer: buffer)
-        guard let cgImage = context.createCGImage(ciImage, from: ciImage.extent),
+        let crop = CaptureGeometry.cropRect(source: ciImage.extent, viewport: pendingViewport)
+        guard let cgImage = context.createCGImage(ciImage, from: crop),
               let data = UIImage(cgImage: cgImage).jpegData(compressionQuality: 0.92) else {
             finish(id: id, error: "사진을 만들지 못했어요. 다시 촬영해 주세요.")
             return

@@ -3,6 +3,8 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 python3 scripts/generate_project.py
 mkdir -p build
+swiftc QuietCamera/CaptureGeometry.swift scripts/CaptureGeometryTests.swift -o build/check-capture-geometry
+build/check-capture-geometry
 xcodebuild -project QuietCamera.xcodeproj -scheme QuietCamera \
   -configuration Release -destination 'generic/platform=iOS' \
   -archivePath "$PWD/build/QuietCamera.xcarchive" \

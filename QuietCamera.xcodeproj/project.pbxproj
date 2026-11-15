@@ -64,6 +64,24 @@
 			<key>fileRef</key>
 			<string>53DE5D687ED1DC438C9CAD0A</string>
 		</dict>
+		<key>5911974AEEB7C8B622FD252B</key>
+		<dict>
+			<key>isa</key>
+			<string>PBXFileReference</string>
+			<key>lastKnownFileType</key>
+			<string>sourcecode.swift</string>
+			<key>path</key>
+			<string>CaptureGeometry.swift</string>
+			<key>sourceTree</key>
+			<string>&lt;group&gt;</string>
+		</dict>
+		<key>1135701BE81E31F5FA3E8437</key>
+		<dict>
+			<key>isa</key>
+			<string>PBXBuildFile</string>
+			<key>fileRef</key>
+			<string>5911974AEEB7C8B622FD252B</string>
+		</dict>
 		<key>8BF729FFE074CAEE622C0292</key>
 		<dict>
 			<key>isa</key>
@@ -115,6 +133,7 @@
 				<string>46C989FCE67E8FBFA8F4828C</string>
 				<string>74B104C66DB28D2817FA5778</string>
 				<string>53DE5D687ED1DC438C9CAD0A</string>
+				<string>5911974AEEB7C8B622FD252B</string>
 				<string>8BF729FFE074CAEE622C0292</string>
 				<string>06271BAF49532C879AA3C58B</string>
 			</array>
@@ -159,6 +178,7 @@
 				<string>C49F83E55DF86DF106BAB633</string>
 				<string>B601E2D708B10C6323187A7C</string>
 				<string>9A6C3447E5CB84402EAD2FA6</string>
+				<string>1135701BE81E31F5FA3E8437</string>
 			</array>
 			<key>runOnlyForDeploymentPostprocessing</key>
 			<integer>0</integer>
