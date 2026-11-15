@@ -1,4 +1,5 @@
 import Foundation
+import CoreGraphics
 
 enum CaptureGeometry {
     /// The centered pixel crop shown by a resizeAspectFill preview of the oriented frame.
