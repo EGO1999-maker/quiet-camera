@@ -23,7 +23,28 @@ struct PhoneRecorderView: View {
     var body: some View {
         NavigationStack {
             List {
+                recordingSection
+                watchSection
+                recordingsSection
                 Section {
+                    Text("Quiet Recorder · 1.0.0").foregroundStyle(.secondary)
+                }
+            }
+            .navigationTitle("조용한 녹음")
+            .onAppear { link.foregroundRefresh() }
+            .onChange(of: scenePhase) { _, phase in if phase == .active { link.foregroundRefresh() } }
+            .alert("녹음 삭제", isPresented: Binding(get: { deletion != nil }, set: { if !$0 { deletion = nil } })) {
+                Button("삭제", role: .destructive) { if let deletion { link.removeLocal(deletion) }; deletion = nil }
+                Button("취소", role: .cancel) { deletion = nil }
+            } message: { Text("아이폰에 저장된 이 녹음을 삭제할까요? 복구할 수 없어요.") }
+            .alert("확인해 주세요", isPresented: Binding(get: { store.error != nil }, set: { if !$0 { store.error = nil } })) {
+                Button("확인") { store.error = nil }
+            } message: { Text(store.error ?? "") }
+        }
+    }
+
+    private var recordingSection: some View {
+        Section {
                     VStack(spacing: 18) {
                         Label("아이폰 내장 마이크", systemImage: "iphone")
                             .font(.headline).foregroundStyle(.secondary)
@@ -43,7 +64,10 @@ struct PhoneRecorderView: View {
                 } footer: {
                     Text("시작·종료 효과음은 재생하지 않아요. 재생 버튼을 누르면 녹음된 소리가 나요.")
                 }
-                Section("애플워치") {
+    }
+
+    private var watchSection: some View {
+        Section("애플워치") {
                     Toggle("워치 원격 녹음", isOn: Binding(get: { link.remoteEnabled }, set: { enabled in
                         if !enabled { link.remoteEnabled = false; return }
                         requestingPermission = true
@@ -59,10 +83,23 @@ struct PhoneRecorderView: View {
                     Text("아이폰 원격 시작이 실패하면 이 앱을 화면에 열고 다시 시도하세요. 시작한 녹음은 화면이 꺼져도 계속할 수 있어요. 통화 등으로 중단되면 다시 시작해야 해요.")
                         .font(.footnote).foregroundStyle(.secondary)
                 }
-                Section("저장된 녹음 · \(store.clips.count)") {
+    }
+
+    private var recordingsSection: some View {
+        Section {
                     if store.clips.isEmpty { Text("저장된 녹음이 없어요").foregroundStyle(.secondary) }
                     ForEach(store.clips) { clip in
-                        VStack(alignment: .leading, spacing: 10) {
+                        clipRow(clip)
+                    }
+                } header: {
+                    Text("저장된 녹음 · \(store.clips.count)")
+                } footer: {
+                    Text("최신순으로 표시해요. 삭제는 이 기기에 저장된 파일에만 적용돼요. 앱을 삭제하면 로컬 녹음도 지워지므로 필요한 파일은 공유로 내보내 주세요.")
+                }
+    }
+
+    private func clipRow(_ clip: RecordingClip) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
                             HStack {
                                 Label(clip.source.title, systemImage: clip.source.symbol).foregroundStyle(.pink)
                                 Spacer()
@@ -80,24 +117,5 @@ struct PhoneRecorderView: View {
                                     .accessibilityLabel("녹음 삭제")
                             }.buttonStyle(.borderless)
                         }.padding(.vertical, 6)
-                    }
-                } footer: {
-                    Text("최신순으로 표시해요. 삭제는 이 기기에 저장된 파일에만 적용돼요. 앱을 삭제하면 로컬 녹음도 지워지므로 필요한 파일은 공유로 내보내 주세요.")
-                }
-                Section {
-                    Text("Quiet Recorder · 1.0.0").foregroundStyle(.secondary)
-                }
-            }
-            .navigationTitle("조용한 녹음")
-            .onAppear { link.foregroundRefresh() }
-            .onChange(of: scenePhase) { phase in if phase == .active { link.foregroundRefresh() } }
-            .alert("녹음 삭제", isPresented: Binding(get: { deletion != nil }, set: { if !$0 { deletion = nil } })) {
-                Button("삭제", role: .destructive) { if let deletion { link.removeLocal(deletion) }; deletion = nil }
-                Button("취소", role: .cancel) { deletion = nil }
-            } message: { Text("아이폰에 저장된 이 녹음을 삭제할까요? 복구할 수 없어요.") }
-            .alert("확인해 주세요", isPresented: Binding(get: { store.error != nil }, set: { if !$0 { store.error = nil } })) {
-                Button("확인") { store.error = nil }
-            } message: { Text(store.error ?? "") }
-        }
     }
 }

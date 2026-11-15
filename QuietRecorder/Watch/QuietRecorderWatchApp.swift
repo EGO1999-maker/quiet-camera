@@ -70,7 +70,7 @@ struct WatchRecorderView: View {
             .onReceive(link.$phone) { phone in
                 if phone?.activeID != nil && store.active == nil { source = .phone }
             }
-            .onChange(of: scenePhase) { phase in if phase == .active { link.foregroundRefresh() } }
+            .onChange(of: scenePhase) { _, phase in if phase == .active { link.foregroundRefresh() } }
             .onReceive(refresh) { _ in
                 if scenePhase == .active && source == .phone && !link.pending { link.send(.status) }
             }
