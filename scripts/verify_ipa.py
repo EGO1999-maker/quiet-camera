@@ -16,5 +16,7 @@ with zipfile.ZipFile(sys.argv[1]) as archive:
     assert info.get("NSPhotoLibraryUsageDescription")
     assert not info.get("NSMicrophoneUsageDescription")
     assert not info.get("UIBackgroundModes")
-    assert info["UISupportedInterfaceOrientations"] == ["UIInterfaceOrientationPortrait"]
+    assert set(info["UISupportedInterfaceOrientations"]) == {
+        "UIInterfaceOrientationPortrait", "UIInterfaceOrientationLandscapeLeft", "UIInterfaceOrientationLandscapeRight"
+    }
 print("IPA packaging verified (unsigned; install and sign with SideStore).")

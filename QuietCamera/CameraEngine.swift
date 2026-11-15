@@ -33,6 +33,8 @@ final class CameraEngine: NSObject, ObservableObject, AVCaptureVideoDataOutputSa
     private var captureID: UUID?
     private var pendingFrame = false
     private var pendingViewport = CGSize.zero
+    private var pendingOrientation: AVCaptureVideoOrientation = .portrait
+    private var rotationFramesToDiscard = 0
     private var observers: [NSObjectProtocol] = []
 
     override init() {
@@ -198,7 +200,8 @@ final class CameraEngine: NSObject, ObservableObject, AVCaptureVideoDataOutputSa
         let biasLower = max(device.minExposureTargetBias, -2)
         let biasUpper = min(device.maxExposureTargetBias, 2)
         let canExpose = device.isExposureModeSupported(.continuousAutoExposure) && biasUpper > biasLower
-        let canFocus = (device.isFocusPointOfInterestSupported && device.isFocusModeSupported(.autoFocus)) ||
+        let canFocus = (device.isFocusPointOfInterestSupported &&
+            (device.isFocusModeSupported(.autoFocus) || device.isFocusModeSupported(.continuousAutoFocus))) ||
             (device.isExposurePointOfInterestSupported && device.isExposureModeSupported(.continuousAutoExposure))
         let currentZoom = CGFloat(scale.displayFactor(for: Double(device.videoZoomFactor)))
         let currentBias = device.exposureTargetBias
@@ -236,9 +239,10 @@ final class CameraEngine: NSObject, ObservableObject, AVCaptureVideoDataOutputSa
                 defer { device.unlockForConfiguration() }
                 let target = CGPoint(x: min(max(point.x, 0), 1), y: min(max(point.y, 0), 1))
                 var adjusted = false
-                if device.isFocusPointOfInterestSupported && device.isFocusModeSupported(.autoFocus) {
+                if device.isFocusPointOfInterestSupported &&
+                    (device.isFocusModeSupported(.autoFocus) || device.isFocusModeSupported(.continuousAutoFocus)) {
                     device.focusPointOfInterest = target
-                    device.focusMode = .autoFocus
+                    device.focusMode = device.isFocusModeSupported(.autoFocus) ? .autoFocus : .continuousAutoFocus
                     adjusted = true
                 }
                 if device.isExposurePointOfInterestSupported && device.isExposureModeSupported(.continuousAutoExposure) {
@@ -313,12 +317,25 @@ final class CameraEngine: NSObject, ObservableObject, AVCaptureVideoDataOutputSa
         }
     }
 
-    func capture(viewportSize: CGSize) {
+    func capture(viewportSize: CGSize, orientation: AVCaptureVideoOrientation) {
         guard viewportSize.width.isFinite, viewportSize.height.isFinite,
               viewportSize.width > 0, viewportSize.height > 0 else { return }
         queue.async {
             guard self.active, self.session.isRunning, !self.session.isInterrupted,
                   !self.waitingForFirstFrame, self.captureID == nil else { return }
+            let landscape = orientation == .landscapeLeft || orientation == .landscapeRight
+            guard (viewportSize.width > viewportSize.height) == landscape,
+                  let connection = self.output.connection(with: .video),
+                  connection.isVideoOrientationSupported else {
+                self.publish { $0.message = "화면 회전이 끝난 뒤 다시 촬영해 주세요." }
+                return
+            }
+            // Freeze orientation for this capture. Preview can rotate independently
+            // while saving; no later layout change can alter the pending photo.
+            let changingOrientation = connection.videoOrientation != orientation
+            connection.videoOrientation = orientation
+            self.rotationFramesToDiscard = changingOrientation ? 2 : 0
+            self.pendingOrientation = orientation
             let id = UUID()
             self.captureID = id
             self.pendingFrame = true
@@ -345,6 +362,11 @@ final class CameraEngine: NSObject, ObservableObject, AVCaptureVideoDataOutputSa
         }
         guard pendingFrame, let id = captureID,
               let buffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
+        // Discard in-flight frames when switching buffer rotation, then check
+        // physical dimensions before cropping the JPEG to the preview ratio.
+        if rotationFramesToDiscard > 0 { rotationFramesToDiscard -= 1; return }
+        let landscape = pendingOrientation == .landscapeLeft || pendingOrientation == .landscapeRight
+        guard (CVPixelBufferGetWidth(buffer) > CVPixelBufferGetHeight(buffer)) == landscape else { return }
         pendingFrame = false
         let ciImage = CIImage(cvPixelBuffer: buffer)
         let crop = CaptureGeometry.cropRect(source: ciImage.extent, viewport: pendingViewport)

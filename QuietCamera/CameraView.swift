@@ -11,7 +11,8 @@ struct CameraView: View {
     @State private var showingReview = false
     @State private var showingExposure = false
     @State private var viewportSize = CGSize.zero
-    private let mint = Color(red: 0.65, green: 0.94, blue: 0.82)
+    @State private var captureOrientation: AVCaptureVideoOrientation = .portrait
+    private let pink = Color(red: 1.0, green: 0.73, blue: 0.82)
 
     var body: some View {
         ZStack {
@@ -23,21 +24,31 @@ struct CameraView: View {
                     canFocus: camera.canTargetFocusOrExposure,
                     onZoom: { camera.setZoom($0) },
                     onFocus: { camera.focus(at: $0) },
-                    onSize: { viewportSize = $0 }
+                    onGeometry: { size, orientation in
+                        viewportSize = size
+                        captureOrientation = orientation
+                    }
                 )
                 .frame(width: geometry.size.width, height: geometry.size.height)
                 .clipped()
             }.ignoresSafeArea()
 
-            VStack(spacing: 0) {
-                header
-                Spacer(minLength: 0)
-                controls
+            GeometryReader { geometry in
+                if geometry.size.width > geometry.size.height {
+                    landscapeControls
+                } else {
+                    VStack(spacing: 0) {
+                        header
+                        Spacer(minLength: 0)
+                        controls
+                    }
+                }
             }
             if !camera.ready { unavailableOverlay }
         }
         .foregroundStyle(.white)
         .background(.black)
+        .tint(pink)
         .sheet(isPresented: $showingSettings) { CameraSettingsView() }
         .fullScreenCover(isPresented: $showingReview) {
             PhotoGalleryView(gallery: gallery)
@@ -62,7 +73,7 @@ struct CameraView: View {
             Spacer()
             Button { showingExposure.toggle() } label: {
                 Image(systemName: "sun.max.fill")
-                    .foregroundStyle(showingExposure ? mint : .white)
+                    .foregroundStyle(showingExposure ? pink : .white)
                     .frame(width: 48, height: 48)
                     .background(.black.opacity(0.35), in: Circle())
             }
@@ -85,31 +96,16 @@ struct CameraView: View {
             if showingExposure && camera.canAdjustExposure { exposureControl }
             zoomControl
             Text(camera.status)
-                .font(.caption.weight(.medium)).foregroundStyle(mint)
+                .font(.caption.weight(.medium)).foregroundStyle(pink)
                 .lineLimit(2).multilineTextAlignment(.center)
                 .padding(.horizontal, 14).padding(.vertical, 6)
                 .background(.black.opacity(0.4), in: Capsule())
             HStack {
-                Button { showingReview = true } label: { thumbnail }
-                    .disabled(camera.busy)
-                    .accessibilityLabel("촬영한 사진 갤러리 열기")
+                galleryButton
                 Spacer()
-                Button { camera.capture(viewportSize: viewportSize) } label: {
-                    ZStack {
-                        Circle().fill(.black.opacity(0.3)).frame(width: 88, height: 88)
-                        Circle().strokeBorder(mint, lineWidth: 3).frame(width: 84, height: 84)
-                        Circle().fill(camera.ready && !camera.busy ? mint : .gray).frame(width: 68, height: 68)
-                        if camera.busy { ProgressView().tint(.black) }
-                    }
-                }
-                .disabled(!camera.ready || camera.busy || viewportSize.width <= 0 || viewportSize.height <= 0)
-                .accessibilityLabel("사진 촬영")
+                shutterButton
                 Spacer()
-                Button { showingExposure = false; camera.switchCamera() } label: {
-                    Image(systemName: "arrow.triangle.2.circlepath.camera")
-                        .font(.system(size: 25)).frame(width: 54, height: 64)
-                        .background(.black.opacity(0.4), in: RoundedRectangle(cornerRadius: 14))
-                }.disabled(!camera.ready || camera.busy).accessibilityLabel("전면·후면 카메라 전환")
+                switchButton
             }
             Text(camera.front ? "전면 · 보이는 구도로 저장" : "후면 · 보이는 구도로 저장")
                 .font(.caption2).foregroundStyle(.white.opacity(0.8))
@@ -117,6 +113,68 @@ struct CameraView: View {
         .padding(.horizontal, 28).padding(.top, 24).padding(.bottom, 12)
         .background(LinearGradient(colors: [.clear, .black.opacity(0.75)],
                                    startPoint: .top, endPoint: .bottom).ignoresSafeArea(edges: .bottom))
+    }
+
+    private var galleryButton: some View {
+        Button { showingReview = true } label: { thumbnail }
+            .disabled(camera.busy)
+            .accessibilityLabel("촬영한 사진 갤러리 열기")
+    }
+
+    private var shutterButton: some View {
+        Button { camera.capture(viewportSize: viewportSize, orientation: captureOrientation) } label: {
+            ZStack {
+                Circle().fill(.black.opacity(0.3)).frame(width: 88, height: 88)
+                Circle().strokeBorder(pink, lineWidth: 3).frame(width: 84, height: 84)
+                Circle().fill(camera.ready && !camera.busy ? pink : .gray).frame(width: 68, height: 68)
+                if camera.busy { ProgressView().tint(.black) }
+            }
+        }
+        .disabled(!camera.ready || camera.busy || viewportSize.width <= 0 || viewportSize.height <= 0)
+        .accessibilityLabel("사진 촬영")
+    }
+
+    private var switchButton: some View {
+        Button { showingExposure = false; camera.switchCamera() } label: {
+            Image(systemName: "arrow.triangle.2.circlepath.camera")
+                .font(.system(size: 25)).frame(width: 54, height: 64)
+                .background(.black.opacity(0.4), in: RoundedRectangle(cornerRadius: 14))
+        }.disabled(!camera.ready || camera.busy).accessibilityLabel("전면·후면 카메라 전환")
+    }
+
+    private var landscapeControls: some View {
+        HStack(spacing: 16) {
+            VStack(spacing: 8) {
+                HStack {
+                    Text("QUIET").font(.system(size: 16, weight: .semibold, design: .rounded)).tracking(4)
+                    Spacer()
+                    Button { showingExposure.toggle() } label: {
+                        Image(systemName: "sun.max.fill").frame(width: 44, height: 44)
+                    }
+                    .disabled(!camera.ready || camera.busy || !camera.canAdjustExposure)
+                    .accessibilityLabel("밝기 조절 표시")
+                    Button { showingSettings = true } label: {
+                        Image(systemName: "gearshape.fill").frame(width: 44, height: 44)
+                    }.accessibilityLabel("카메라 및 사진 권한 설정")
+                }
+                .padding(.horizontal, 12)
+                .background(.black.opacity(0.35), in: Capsule())
+                Spacer(minLength: 0)
+                if showingExposure && camera.canAdjustExposure { exposureControl }
+                zoomControl
+                Text(camera.status).font(.caption).foregroundStyle(pink)
+                    .lineLimit(1).padding(.horizontal, 12).padding(.vertical, 4)
+                    .background(.black.opacity(0.4), in: Capsule())
+            }
+            VStack(spacing: 12) {
+                galleryButton
+                Spacer(minLength: 0)
+                shutterButton
+                Spacer(minLength: 0)
+                switchButton
+            }.frame(width: 88)
+        }
+        .padding(.horizontal, 16).padding(.vertical, 10)
     }
 
     private var zoomControl: some View {
@@ -127,12 +185,12 @@ struct CameraView: View {
             .frame(minWidth: 44, minHeight: 44)
             .accessibilityLabel("최소 배율로 축소")
             Text(String(format: "%.1f×", Double(camera.zoom)))
-                .fontWeight(.semibold).foregroundStyle(mint).frame(width: 44)
+                .fontWeight(.semibold).foregroundStyle(pink).frame(width: 44)
                 .accessibilityLabel("현재 배율")
                 .accessibilityValue(String(format: "%.1f배", Double(camera.zoom)))
             Slider(value: Binding(get: { Double(camera.zoom) }, set: { camera.setZoom(CGFloat($0)) }),
                    in: Double(camera.minimumZoom)...Double(max(camera.maximumZoom, camera.minimumZoom + 0.001)))
-                .tint(mint).accessibilityLabel("카메라 확대 축소")
+                .tint(pink).accessibilityLabel("카메라 확대 축소")
             Text(String(format: "%g×", Double(camera.maximumZoom)))
                 .foregroundStyle(.white.opacity(0.8)).frame(minWidth: 32)
                 .accessibilityLabel("최대 배율")
@@ -150,7 +208,7 @@ struct CameraView: View {
                 Slider(value: Binding(get: { Double(camera.exposureBias) }, set: { camera.setExposureBias(Float($0)) }),
                        in: Double(camera.minimumExposureBias)...Double(max(camera.maximumExposureBias, camera.minimumExposureBias + 0.001)),
                        step: 0.1)
-                    .tint(mint).accessibilityLabel("노출 보정")
+                    .tint(pink).accessibilityLabel("노출 보정")
                 Image(systemName: "sun.max.fill")
             }
             HStack {
@@ -180,7 +238,7 @@ struct CameraView: View {
 
     private var unavailableOverlay: some View {
         VStack(spacing: 16) {
-            Image(systemName: "camera").font(.largeTitle).foregroundStyle(mint)
+            Image(systemName: "camera").font(.largeTitle).foregroundStyle(pink)
             Text(camera.status).font(.callout).multilineTextAlignment(.center)
             Button(camera.permissionDenied ? "설정 열기" : "다시 시도") {
                 if camera.permissionDenied { openAppSettings() }
@@ -285,7 +343,7 @@ private func openAppSettings() {
     UIApplication.shared.open(url)
 }
 
-private struct CameraPreview: UIViewRepresentable {
+private struct CameraPreview: UIViewControllerRepresentable {
     let session: AVCaptureSession
     let front: Bool
     let zoom: CGFloat
@@ -295,16 +353,17 @@ private struct CameraPreview: UIViewRepresentable {
     let canFocus: Bool
     let onZoom: (CGFloat) -> Void
     let onFocus: (CGPoint) -> Void
-    let onSize: (CGSize) -> Void
+    let onGeometry: (CGSize, AVCaptureVideoOrientation) -> Void
 
-    func makeUIView(context: Context) -> PreviewView {
-        let view = PreviewView()
-        view.preview.session = session
-        view.preview.videoGravity = .resizeAspectFill
-        return view
+    func makeUIViewController(context: Context) -> PreviewController {
+        let controller = PreviewController()
+        controller.previewView.preview.session = session
+        controller.previewView.preview.videoGravity = .resizeAspectFill
+        return controller
     }
 
-    func updateUIView(_ view: PreviewView, context: Context) {
+    func updateUIViewController(_ controller: PreviewController, context: Context) {
+        let view = controller.previewView
         if view.front != front { view.hideFocusIndicator() }
         view.front = front
         view.currentZoom = zoom
@@ -314,8 +373,24 @@ private struct CameraPreview: UIViewRepresentable {
         view.canFocus = canFocus
         view.onZoom = onZoom
         view.onFocus = onFocus
-        view.onSize = onSize
+        view.onGeometry = onGeometry
         view.setNeedsLayout()
+    }
+}
+
+private final class PreviewController: UIViewController {
+    let previewView = PreviewView()
+    override func loadView() { view = previewView }
+    override func viewWillTransition(to size: CGSize, with coordinator: UIViewControllerTransitionCoordinator) {
+        super.viewWillTransition(to: size, with: coordinator)
+        previewView.hideFocusIndicator()
+        coordinator.animate(alongsideTransition: { _ in
+            self.previewView.setNeedsLayout()
+            self.previewView.layoutIfNeeded()
+        }, completion: { _ in
+            self.previewView.setNeedsLayout()
+            self.previewView.layoutIfNeeded()
+        })
     }
 }
 
@@ -330,9 +405,10 @@ private final class PreviewView: UIView {
     var canFocus = false
     var onZoom: ((CGFloat) -> Void)?
     var onFocus: ((CGPoint) -> Void)?
-    var onSize: ((CGSize) -> Void)?
+    var onGeometry: ((CGSize, AVCaptureVideoOrientation) -> Void)?
     private var pinchStartZoom: CGFloat = 1
     private var reportedSize = CGSize.zero
+    private var reportedOrientation: AVCaptureVideoOrientation?
     private let focusIndicator = UIView()
     private var focusID = UUID()
 
@@ -346,7 +422,7 @@ private final class PreviewView: UIView {
         addGestureRecognizer(tap)
         focusIndicator.isUserInteractionEnabled = false
         focusIndicator.layer.borderWidth = 1.5
-        focusIndicator.layer.borderColor = UIColor.systemYellow.cgColor
+        focusIndicator.layer.borderColor = UIColor(red: 1, green: 0.73, blue: 0.82, alpha: 1).cgColor
         focusIndicator.layer.cornerRadius = 8
         focusIndicator.alpha = 0
         addSubview(focusIndicator)
@@ -356,17 +432,27 @@ private final class PreviewView: UIView {
 
     override func layoutSubviews() {
         super.layoutSubviews()
+        let orientation: AVCaptureVideoOrientation
+        switch window?.windowScene?.interfaceOrientation {
+        case .landscapeLeft: orientation = .landscapeLeft
+        case .landscapeRight: orientation = .landscapeRight
+        case .portraitUpsideDown: orientation = .portraitUpsideDown
+        default: orientation = .portrait
+        }
         if let connection = preview.connection {
-            if connection.isVideoOrientationSupported { connection.videoOrientation = .portrait }
+            if connection.isVideoOrientationSupported { connection.videoOrientation = orientation }
             if connection.isVideoMirroringSupported {
                 connection.automaticallyAdjustsVideoMirroring = false
                 connection.isVideoMirrored = front
             }
         }
-        if bounds.size != reportedSize, bounds.width > 0, bounds.height > 0 {
+        if (bounds.size != reportedSize || orientation != reportedOrientation),
+           bounds.width > 0, bounds.height > 0 {
+            hideFocusIndicator()
             reportedSize = bounds.size
+            reportedOrientation = orientation
             let size = bounds.size
-            DispatchQueue.main.async { [weak self] in self?.onSize?(size) }
+            DispatchQueue.main.async { [weak self] in self?.onGeometry?(size, orientation) }
         }
     }
 
@@ -385,13 +471,15 @@ private final class PreviewView: UIView {
     @objc private func tapped(_ gesture: UITapGestureRecognizer) {
         guard interactive, canFocus, gesture.state == .ended, preview.connection != nil else { return }
         let point = gesture.location(in: self)
-        // AVFoundation accounts for preview cropping, portrait rotation and selfie mirroring.
+        // Preview-layer conversion accounts for crop, both landscape directions and selfie mirroring.
         onFocus?(preview.captureDevicePointConverted(fromLayerPoint: point))
         let id = UUID()
         focusID = id
         focusIndicator.layer.removeAllAnimations()
         focusIndicator.frame = CGRect(x: point.x - 30, y: point.y - 30, width: 60, height: 60)
         focusIndicator.alpha = 1
+        focusIndicator.transform = CGAffineTransform(scaleX: 1.2, y: 1.2)
+        UIView.animate(withDuration: 0.18) { self.focusIndicator.transform = .identity }
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
             guard let self, self.focusID == id else { return }
             UIView.animate(withDuration: 0.25) { self.focusIndicator.alpha = 0 }
