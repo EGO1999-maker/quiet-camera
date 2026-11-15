@@ -495,14 +495,17 @@ private final class PreviewView: UIView {
 
 struct ZoomablePhoto: UIViewRepresentable {
     let image: UIImage
+    var onZoomChanged: ((Bool) -> Void)? = nil
 
     func makeUIView(context: Context) -> PhotoScrollView {
         let view = PhotoScrollView()
+        view.onZoomChanged = onZoomChanged
         view.imageView.image = image
         return view
     }
 
     func updateUIView(_ view: PhotoScrollView, context: Context) {
+        view.onZoomChanged = onZoomChanged
         if view.imageView.image !== image {
             view.imageView.image = image
             view.setZoomScale(1, animated: false)
@@ -512,6 +515,7 @@ struct ZoomablePhoto: UIViewRepresentable {
 
 final class PhotoScrollView: UIScrollView, UIScrollViewDelegate {
     let imageView = UIImageView()
+    var onZoomChanged: ((Bool) -> Void)?
     private var lastSize = CGSize.zero
 
     override init(frame: CGRect) {
@@ -519,6 +523,8 @@ final class PhotoScrollView: UIScrollView, UIScrollViewDelegate {
         delegate = self
         minimumZoomScale = 1
         maximumZoomScale = 5
+        bounces = false
+        panGestureRecognizer.isEnabled = false
         showsVerticalScrollIndicator = false
         showsHorizontalScrollIndicator = false
         backgroundColor = .black
@@ -533,6 +539,19 @@ final class PhotoScrollView: UIScrollView, UIScrollViewDelegate {
 
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        var responder: UIResponder? = self
+        while let current = responder {
+            if let controller = current as? UIViewController,
+               let back = controller.navigationController?.interactivePopGestureRecognizer {
+                panGestureRecognizer.require(toFail: back)
+                break
+            }
+            responder = current.next
+        }
+    }
+
     override func layoutSubviews() {
         super.layoutSubviews()
         if bounds.size != lastSize {
@@ -544,5 +563,10 @@ final class PhotoScrollView: UIScrollView, UIScrollViewDelegate {
     }
 
     func viewForZooming(in scrollView: UIScrollView) -> UIView? { imageView }
+    func scrollViewDidZoom(_ scrollView: UIScrollView) {
+        let enlarged = zoomScale > minimumZoomScale + 0.01
+        panGestureRecognizer.isEnabled = enlarged
+        onZoomChanged?(enlarged)
+    }
     @objc private func resetZoom() { setZoomScale(1, animated: true) }
 }

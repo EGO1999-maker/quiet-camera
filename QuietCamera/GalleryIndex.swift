@@ -1,5 +1,17 @@
 import Foundation
 
+enum GallerySelection {
+    static func retainedID(_ selected: String, before: [String], after: [String]) -> String? {
+        let available = Set(after)
+        if available.contains(selected) { return selected }
+        if let position = before.firstIndex(of: selected) {
+            if let next = before.dropFirst(position + 1).first(where: { available.contains($0) }) { return next }
+            if let previous = before.prefix(position).reversed().first(where: { available.contains($0) }) { return previous }
+        }
+        return after.first
+    }
+}
+
 /// Append order is capture order, even when the device clock changes.
 /// Keep inaccessible IDs: limited permission must never erase the capture history.
 struct GalleryRecord: Codable, Identifiable, Equatable {

@@ -72,7 +72,7 @@ jobs:
           (cd release && sha256sum --check "$IPA.sha256")
           python3 scripts/verify_ipa.py "release/$IPA"
           printf '%s\n' \
-            'Adds a pale-pink theme, both landscape shooting orientations, landscape controls and a pink animated tap-focus indicator. Retains ultra-wide zoom, capture-order gallery and confirmed photo deletion.' \
+            'Adds left-edge back navigation and horizontal paging through captured photos. Zoomed photos pan within the image; restore fit size to resume paging. Deletion preserves a neighboring photo selection.' \
             '' \
             'Capture supports add-only access; gallery viewing and deletion require selected/all photo access. History starts with v1.3.0 captures; older photos remain in Photos. Update the existing app to retain history.' \
             '' \

@@ -17,7 +17,7 @@ def add(object_name, isa, **fields):
     return key
 
 
-source_names = ["QuietCameraApp.swift", "CameraEngine.swift", "CameraView.swift", "CaptureGeometry.swift", "GalleryIndex.swift", "PhotoGalleryStore.swift", "PhotoGalleryView.swift", "CameraZoom.swift"]
+source_names = ["QuietCameraApp.swift", "CameraEngine.swift", "CameraView.swift", "CaptureGeometry.swift", "GalleryIndex.swift", "PhotoGalleryStore.swift", "PhotoGalleryView.swift", "CameraZoom.swift", "GalleryNavigation.swift"]
 source_refs, build_refs = [], []
 for name in source_names:
     ref = add(name, "PBXFileReference", lastKnownFileType="sourcecode.swift", path=name, sourceTree="<group>")

@@ -6,10 +6,11 @@ struct PhotoGalleryView: View {
     @ObservedObject var gallery: PhotoGalleryStore
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
+    @State private var path: [String] = []
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 3), count: 3)
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             Group {
                 if !gallery.canRead {
                     VStack(spacing: 18) {
@@ -45,9 +46,7 @@ struct PhotoGalleryView: View {
                             LazyVGrid(columns: columns, spacing: 3) {
                                 ForEach(gallery.visibleRecords) { record in
                                     if let asset = gallery.assets[record.id] {
-                                        NavigationLink {
-                                            GalleryDetailView(gallery: gallery, record: record)
-                                        } label: {
+                                        NavigationLink(value: record.id) {
                                             GeometryReader { geo in
                                                 GalleryImage(asset: asset, fullSize: false)
                                                     .frame(width: geo.size.width, height: geo.size.height)
@@ -74,6 +73,10 @@ struct PhotoGalleryView: View {
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) { Button("완료") { dismiss() }.disabled(gallery.deleting) }
             }
+            .background(GalleryEdgeDismiss(enabled: path.isEmpty && !gallery.deleting) { dismiss() })
+            .navigationDestination(for: String.self) { id in
+                GalleryDetailView(gallery: gallery, initialID: id, closeGallery: { dismiss() })
+            }
             .onAppear { gallery.refresh() }
             .onChange(of: scenePhase) { if $0 == .active { gallery.refresh() } }
             .alert("확인해 주세요", isPresented: Binding(
@@ -88,44 +91,64 @@ struct PhotoGalleryView: View {
 
 private struct GalleryDetailView: View {
     @ObservedObject var gallery: PhotoGalleryStore
-    let record: GalleryRecord
+    let closeGallery: () -> Void
     @Environment(\.dismiss) private var dismiss
+    @State private var selection: String
+    @State private var previousIDs: [String]
     @State private var confirmDelete = false
+    @State private var deletionID: String?
+
+    init(gallery: PhotoGalleryStore, initialID: String, closeGallery: @escaping () -> Void) {
+        self.gallery = gallery
+        self.closeGallery = closeGallery
+        _selection = State(initialValue: initialID)
+        _previousIDs = State(initialValue: gallery.visibleRecords.map(\.id))
+    }
+
+    private var selectedRecord: GalleryRecord? { gallery.visibleRecords.first { $0.id == selection } }
+    private var currentNumber: Int { (gallery.visibleRecords.firstIndex { $0.id == selection } ?? 0) + 1 }
 
     var body: some View {
-        Group {
-            if let asset = gallery.assets[record.id] {
-                GalleryImage(asset: asset, fullSize: true)
-            } else {
-                Text("사진에 접근할 수 없어요.\n목록으로 돌아가 사진 권한을 확인해 주세요.")
-                    .multilineTextAlignment(.center).padding()
-            }
-        }
+        GalleryPager(records: gallery.visibleRecords, assets: gallery.assets,
+                     selection: $selection, locked: gallery.deleting || confirmDelete)
         .frame(maxWidth: .infinity, maxHeight: .infinity).background(.black)
-        .navigationTitle(record.capturedAt.formatted(date: .abbreviated, time: .shortened))
+        .navigationTitle(selectedRecord?.capturedAt.formatted(date: .abbreviated, time: .shortened) ?? "촬영한 사진")
         .navigationBarTitleDisplayMode(.inline)
-        .navigationBarBackButtonHidden(gallery.deleting)
+        .navigationBarBackButtonHidden(gallery.deleting || confirmDelete)
         .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                Button(role: .destructive) { confirmDelete = true } label: {
-                    Image(systemName: "trash")
-                }
-                .disabled(gallery.deleting || gallery.assets[record.id] == nil)
-                .accessibilityLabel("이 사진 삭제")
+            ToolbarItemGroup(placement: .primaryAction) {
+                Button(role: .destructive) {
+                    deletionID = selection
+                    confirmDelete = true
+                } label: { Image(systemName: "trash") }
+                .disabled(gallery.deleting || selectedRecord == nil)
+                .accessibilityLabel("현재 사진 삭제")
+                Button("완료") { closeGallery() }.disabled(gallery.deleting)
             }
         }
         .safeAreaInset(edge: .bottom) {
             if gallery.deleting { ProgressView("삭제 처리 중").padding() }
             else {
-                Text("두 손가락으로 확대 · 두 번 누르면 원래 크기")
-                    .font(.caption).foregroundStyle(.secondary).padding(12)
+                VStack(spacing: 4) {
+                    Text("\(currentNumber) / \(gallery.visibleRecords.count)").monospacedDigit()
+                    Text("좌우로 넘기기 · 두 손가락 확대 · 두 번 탭으로 복원")
+                }.font(.caption).foregroundStyle(.secondary).padding(12)
             }
+        }
+        .onChange(of: gallery.visibleRecords.map(\.id)) { ids in
+            // Keep the same photo across refreshes. After removal prefer the
+            // next surviving capture, then the previous one.
+            if let retained = GallerySelection.retainedID(selection, before: previousIDs, after: ids) {
+                selection = retained
+            } else { dismiss() }
+            previousIDs = ids
         }
         .confirmationDialog("이 사진을 삭제할까요?", isPresented: $confirmDelete, titleVisibility: .visible) {
             Button("사진 삭제", role: .destructive) {
-                gallery.delete(id: record.id) { success in if success { dismiss() } }
+                guard let id = deletionID else { return }
+                gallery.delete(id: id) { _ in }
             }
-            Button("취소", role: .cancel) { }
+            Button("취소", role: .cancel) { deletionID = nil }
         } message: {
             Text("아이폰 사진 보관함에서도 삭제됩니다. iCloud 사진을 사용하면 연결된 기기에도 반영됩니다.")
         }
@@ -136,13 +159,14 @@ private struct GalleryDetailView: View {
 struct GalleryImage: View {
     let asset: PHAsset
     let fullSize: Bool
+    var onZoomChanged: ((Bool) -> Void)? = nil
     @StateObject private var loader = GalleryImageLoader()
 
     var body: some View {
         ZStack {
             Color(white: 0.12)
             if let image = loader.image {
-                if fullSize { ZoomablePhoto(image: image) }
+                if fullSize { ZoomablePhoto(image: image, onZoomChanged: onZoomChanged) }
                 else { Image(uiImage: image).resizable().scaledToFill() }
             } else if loader.failed {
                 VStack(spacing: 8) {

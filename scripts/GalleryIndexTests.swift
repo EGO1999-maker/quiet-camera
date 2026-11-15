@@ -26,6 +26,13 @@ struct GalleryIndexTests {
             _ = try GalleryIndex.read(from: url)
             fatalError("Corrupt history must not silently become an empty index")
         } catch { }
+        let ordered = ["first", "second", "third", "fourth"]
+        assert(GallerySelection.retainedID("second", before: ordered, after: ordered) == "second")
+        assert(GallerySelection.retainedID("second", before: ordered, after: ["first", "third", "fourth"]) == "third")
+        assert(GallerySelection.retainedID("fourth", before: ordered, after: ["first", "third"]) == "third")
+        assert(GallerySelection.retainedID("second", before: ordered, after: ["fourth"]) == "fourth")
+        assert(GallerySelection.retainedID("first", before: ["first"], after: []) == nil)
+        print("Gallery selection checks passed: keep current, middle/last deletion, limited access and empty list.")
         print("Gallery history checks passed: capture order, restart, duplicate prevention, exact deletion and corrupt data.")
     }
 }
