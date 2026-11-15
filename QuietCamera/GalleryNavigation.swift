@@ -75,11 +75,13 @@ struct GalleryPager: UIViewControllerRepresentable {
     let records: [GalleryRecord]
     let assets: [String: PHAsset]
     @Binding var selection: String
+    @Binding var transitioning: Bool
     let locked: Bool
 
     func makeUIViewController(context: Context) -> GalleryPagerController { GalleryPagerController() }
     func updateUIViewController(_ controller: GalleryPagerController, context: Context) {
         controller.onSelection = { selection = $0 }
+        controller.onTransition = { transitioning = $0 }
         controller.update(records: records, assets: assets, selection: selection, locked: locked)
     }
 }
@@ -96,6 +98,7 @@ final class GalleryPageController: UIHostingController<GalleryImage> {
 
 final class GalleryPagerController: UIPageViewController, UIPageViewControllerDataSource, UIPageViewControllerDelegate {
     var onSelection: ((String) -> Void)?
+    var onTransition: ((Bool) -> Void)?
     private var records: [GalleryRecord] = []
     private var assets: [String: PHAsset] = [:]
     private var locked = false
@@ -178,6 +181,7 @@ final class GalleryPagerController: UIPageViewController, UIPageViewControllerDa
     }
     func pageViewController(_ pageViewController: UIPageViewController, willTransitionTo pendingViewControllers: [UIViewController]) {
         transitioning = true
+        onTransition?(true)
     }
     func pageViewController(_ pageViewController: UIPageViewController, didFinishAnimating finished: Bool,
                             previousViewControllers: [UIViewController], transitionCompleted completed: Bool) {
@@ -188,5 +192,6 @@ final class GalleryPagerController: UIPageViewController, UIPageViewControllerDa
         }
         synchronizeSelection()
         updatePaging()
+        onTransition?(false)
     }
 }

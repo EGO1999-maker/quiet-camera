@@ -97,6 +97,7 @@ private struct GalleryDetailView: View {
     @State private var previousIDs: [String]
     @State private var confirmDelete = false
     @State private var deletionID: String?
+    @State private var paging = false
 
     init(gallery: PhotoGalleryStore, initialID: String, closeGallery: @escaping () -> Void) {
         self.gallery = gallery
@@ -110,7 +111,7 @@ private struct GalleryDetailView: View {
 
     var body: some View {
         GalleryPager(records: gallery.visibleRecords, assets: gallery.assets,
-                     selection: $selection, locked: gallery.deleting || confirmDelete)
+                     selection: $selection, transitioning: $paging, locked: gallery.deleting || confirmDelete)
         .frame(maxWidth: .infinity, maxHeight: .infinity).background(.black)
         .navigationTitle(selectedRecord?.capturedAt.formatted(date: .abbreviated, time: .shortened) ?? "촬영한 사진")
         .navigationBarTitleDisplayMode(.inline)
@@ -121,7 +122,7 @@ private struct GalleryDetailView: View {
                     deletionID = selection
                     confirmDelete = true
                 } label: { Image(systemName: "trash") }
-                .disabled(gallery.deleting || selectedRecord == nil)
+                .disabled(gallery.deleting || paging || selectedRecord == nil)
                 .accessibilityLabel("현재 사진 삭제")
                 Button("완료") { closeGallery() }.disabled(gallery.deleting)
             }
