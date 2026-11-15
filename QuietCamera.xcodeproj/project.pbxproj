@@ -82,6 +82,60 @@
 			<key>fileRef</key>
 			<string>5911974AEEB7C8B622FD252B</string>
 		</dict>
+		<key>8B2C753D0601287385CB7213</key>
+		<dict>
+			<key>isa</key>
+			<string>PBXFileReference</string>
+			<key>lastKnownFileType</key>
+			<string>sourcecode.swift</string>
+			<key>path</key>
+			<string>GalleryIndex.swift</string>
+			<key>sourceTree</key>
+			<string>&lt;group&gt;</string>
+		</dict>
+		<key>44F96EF0044CDEEEA1806AA5</key>
+		<dict>
+			<key>isa</key>
+			<string>PBXBuildFile</string>
+			<key>fileRef</key>
+			<string>8B2C753D0601287385CB7213</string>
+		</dict>
+		<key>5111CE7BE899B4E49E45804D</key>
+		<dict>
+			<key>isa</key>
+			<string>PBXFileReference</string>
+			<key>lastKnownFileType</key>
+			<string>sourcecode.swift</string>
+			<key>path</key>
+			<string>PhotoGalleryStore.swift</string>
+			<key>sourceTree</key>
+			<string>&lt;group&gt;</string>
+		</dict>
+		<key>FFEE9CEF1E2E1527D1C6ACE2</key>
+		<dict>
+			<key>isa</key>
+			<string>PBXBuildFile</string>
+			<key>fileRef</key>
+			<string>5111CE7BE899B4E49E45804D</string>
+		</dict>
+		<key>9CE851162AC67CE656AE4EC7</key>
+		<dict>
+			<key>isa</key>
+			<string>PBXFileReference</string>
+			<key>lastKnownFileType</key>
+			<string>sourcecode.swift</string>
+			<key>path</key>
+			<string>PhotoGalleryView.swift</string>
+			<key>sourceTree</key>
+			<string>&lt;group&gt;</string>
+		</dict>
+		<key>2F58B5D5B8E468FE4448E0D8</key>
+		<dict>
+			<key>isa</key>
+			<string>PBXBuildFile</string>
+			<key>fileRef</key>
+			<string>9CE851162AC67CE656AE4EC7</string>
+		</dict>
 		<key>8BF729FFE074CAEE622C0292</key>
 		<dict>
 			<key>isa</key>
@@ -134,6 +188,9 @@
 				<string>74B104C66DB28D2817FA5778</string>
 				<string>53DE5D687ED1DC438C9CAD0A</string>
 				<string>5911974AEEB7C8B622FD252B</string>
+				<string>8B2C753D0601287385CB7213</string>
+				<string>5111CE7BE899B4E49E45804D</string>
+				<string>9CE851162AC67CE656AE4EC7</string>
 				<string>8BF729FFE074CAEE622C0292</string>
 				<string>06271BAF49532C879AA3C58B</string>
 			</array>
@@ -179,6 +236,9 @@
 				<string>B601E2D708B10C6323187A7C</string>
 				<string>9A6C3447E5CB84402EAD2FA6</string>
 				<string>1135701BE81E31F5FA3E8437</string>
+				<string>44F96EF0044CDEEEA1806AA5</string>
+				<string>FFEE9CEF1E2E1527D1C6ACE2</string>
+				<string>2F58B5D5B8E468FE4448E0D8</string>
 			</array>
 			<key>runOnlyForDeploymentPostprocessing</key>
 			<integer>0</integer>

@@ -72,9 +72,9 @@ jobs:
           (cd release && sha256sum --check "$IPA.sha256")
           python3 scripts/verify_ipa.py "release/$IPA"
           printf '%s\n' \
-            'Full-screen camera with pinch/slider digital zoom, tap focus/exposure, brightness control and last-photo review.' \
+            'Capture-order thumbnail gallery, persistent capture history, zoomable photo review and confirmed deletion from the Photos library.' \
             '' \
-            'Settings supports add-only photo access and optional selected/all photo access. Choose the actual permission on your iPhone.' \
+            'Capture supports add-only access; gallery viewing and deletion require selected/all photo access. History starts with v1.3.0 captures; older photos remain in Photos. Update the existing app to retain history.' \
             '' \
             "Install $IPA using SideStore. The IPA is unsigned; SideStore signs it." \
             '' \

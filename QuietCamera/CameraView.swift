@@ -5,6 +5,7 @@ import UIKit
 
 struct CameraView: View {
     @StateObject private var camera = CameraEngine()
+    @StateObject private var gallery = PhotoGalleryStore.shared
     @Environment(\.scenePhase) private var scenePhase
     @State private var showingSettings = false
     @State private var showingReview = false
@@ -39,11 +40,14 @@ struct CameraView: View {
         .background(.black)
         .sheet(isPresented: $showingSettings) { CameraSettingsView() }
         .fullScreenCover(isPresented: $showingReview) {
-            if let image = camera.thumbnail { PhotoReviewView(image: image) }
+            PhotoGalleryView(gallery: gallery)
         }
         .onAppear { camera.setActive(scenePhase == .active && !showingReview) }
         .onDisappear { camera.setActive(false) }
-        .onChange(of: scenePhase) { phase in camera.setActive(phase == .active && !showingReview) }
+        .onChange(of: scenePhase) { phase in
+            camera.setActive(phase == .active && !showingReview)
+            if phase == .active { gallery.refresh() }
+        }
         .onChange(of: showingReview) { value in camera.setActive(scenePhase == .active && !value) }
         .alert("확인해 주세요", isPresented: Binding(
             get: { camera.message != nil }, set: { if !$0 { camera.message = nil } })) {
@@ -87,8 +91,8 @@ struct CameraView: View {
                 .background(.black.opacity(0.4), in: Capsule())
             HStack {
                 Button { showingReview = true } label: { thumbnail }
-                    .disabled(camera.thumbnail == nil || camera.busy)
-                    .accessibilityLabel("마지막으로 저장한 사진 크게 보기")
+                    .disabled(camera.busy)
+                    .accessibilityLabel("촬영한 사진 갤러리 열기")
                 Spacer()
                 Button { camera.capture(viewportSize: viewportSize) } label: {
                     ZStack {
@@ -153,7 +157,9 @@ struct CameraView: View {
     private var thumbnail: some View {
         ZStack {
             RoundedRectangle(cornerRadius: 14).fill(.black.opacity(0.4))
-            if let image = camera.thumbnail {
+            if let record = gallery.visibleRecords.last, let asset = gallery.assets[record.id] {
+                GalleryImage(asset: asset, fullSize: false)
+            } else if !gallery.canRead, let image = camera.thumbnail {
                 Image(uiImage: image).resizable().scaledToFill()
             } else {
                 Image(systemName: "photo").foregroundStyle(.white.opacity(0.7))
@@ -389,28 +395,7 @@ private final class PreviewView: UIView {
     }
 }
 
-private struct PhotoReviewView: View {
-    let image: UIImage
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        NavigationStack {
-            ZoomablePhoto(image: image)
-                .background(.black)
-                .navigationTitle("저장한 사진")
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .confirmationAction) { Button("완료") { dismiss() } }
-                }
-                .safeAreaInset(edge: .bottom) {
-                    Text("두 손가락으로 확대 · 두 번 누르면 원래 크기")
-                        .font(.caption).foregroundStyle(.secondary).padding(12)
-                }
-        }.preferredColorScheme(.dark)
-    }
-}
-
-private struct ZoomablePhoto: UIViewRepresentable {
+struct ZoomablePhoto: UIViewRepresentable {
     let image: UIImage
 
     func makeUIView(context: Context) -> PhotoScrollView {
@@ -427,7 +412,7 @@ private struct ZoomablePhoto: UIViewRepresentable {
     }
 }
 
-private final class PhotoScrollView: UIScrollView, UIScrollViewDelegate {
+final class PhotoScrollView: UIScrollView, UIScrollViewDelegate {
     let imageView = UIImageView()
     private var lastSize = CGSize.zero
 
@@ -441,7 +426,7 @@ private final class PhotoScrollView: UIScrollView, UIScrollViewDelegate {
         backgroundColor = .black
         imageView.contentMode = .scaleAspectFit
         imageView.isAccessibilityElement = true
-        imageView.accessibilityLabel = "마지막으로 저장한 사진"
+        imageView.accessibilityLabel = "선택한 촬영 사진"
         addSubview(imageView)
         let doubleTap = UITapGestureRecognizer(target: self, action: #selector(resetZoom))
         doubleTap.numberOfTapsRequired = 2

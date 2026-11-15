@@ -326,6 +326,7 @@ final class CameraEngine: NSObject, ObservableObject, AVCaptureVideoDataOutputSa
             finish(id: id, error: "사진을 만들지 못했어요. 다시 촬영해 주세요.")
             return
         }
+        let capturedAt = Date()
         publish { $0.status = "사진 저장 중" }
         // Capture the frame before asking permission, preserving the button-press moment.
         PHPhotoLibrary.requestAuthorization(for: .addOnly) { [weak self] authorization in
@@ -336,15 +337,24 @@ final class CameraEngine: NSObject, ObservableObject, AVCaptureVideoDataOutputSa
                 }
                 return
             }
+            var savedIdentifier: String?
             PHPhotoLibrary.shared().performChanges({
                 let request = PHAssetCreationRequest.forAsset()
                 let options = PHAssetResourceCreationOptions()
                 options.originalFilename = "QuietCamera-\(UUID().uuidString).jpg"
                 request.addResource(with: .photo, data: data, options: options)
+                savedIdentifier = request.placeholderForCreatedAsset?.localIdentifier
             }, completionHandler: { success, _ in
                 self.queue.async {
                     if success {
-                        self.publish { $0.thumbnail = UIImage(data: data) }
+                        self.publish {
+                            $0.thumbnail = UIImage(data: data)
+                            if let savedIdentifier {
+                                PhotoGalleryStore.shared.addSavedPhoto(id: savedIdentifier, capturedAt: capturedAt)
+                            } else {
+                                $0.message = "사진은 저장했지만 촬영 목록에 추가하지 못했어요. 사진 앱에서 확인해 주세요."
+                            }
+                        }
                         self.finish(id: id, error: nil, saved: true)
                     } else {
                         self.finish(id: id, error: "사진을 저장하지 못했어요. 저장 공간과 사진 접근 권한을 확인해 주세요.")
